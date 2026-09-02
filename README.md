@@ -44,8 +44,13 @@ over raw HID.
   dial and joystick, which flash when the physical controls are used.
 - **Action keys** run configured launchers (deploy, judge, janitor,
   commit/push, new terminal). They work with or without the browser open.
-- **Talk key** - Web Speech voice-to-text, copied to the clipboard, with a gold
-  underglow pulse while listening.
+- **Talk key** - Web Speech voice-to-text. The transcript lands in the Notes
+  box and on the clipboard, with a gold underglow pulse while listening.
+  Dictation needs the MicroPad tab focused: Chrome will not listen for a
+  background document, so pressing talk ON THE PAD while you work elsewhere
+  lights the pulse and says so rather than failing silently. Set
+  `"focusBrowserOnTalk": true` in config.json to have the pad raise the window
+  first.
 - **Slot names, colours and outer-light effects** edited in the browser and
   saved to `config.json`; every firmware effect (solid, breathing, snake,
   rainbow, gradient, shallow breath, off) is selectable.

@@ -1,5 +1,7 @@
 {
   "pollIntervalMs": 2500,
+  "cmdDir": null,
+  "focusBrowserOnTalk": false,
   "slots": [
     {
       "slot": 0,
@@ -51,7 +53,7 @@
       "label": "Blocked"
     },
     "working": {
-      "color": 16728356,
+      "color": 8146431,
       "effect": 1,
       "label": "Working"
     },
@@ -61,7 +63,7 @@
       "label": "Done"
     },
     "idle": {
-      "color": 51283,
+      "color": 16765952,
       "effect": 1,
       "label": "Idle"
     },
@@ -78,6 +80,14 @@
     "unknown",
     "idle"
   ],
+  "underglow": {
+    "mode": "auto",
+    "color": "#ff4124",
+    "effect": 1,
+    "animation": "state",
+    "brightness": 1,
+    "speed": 0.5
+  },
   "brightness": 1,
   "speed": 0.5,
   "actions": {

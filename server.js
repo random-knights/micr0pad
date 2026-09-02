@@ -71,6 +71,7 @@ async function sysSnapshot() {
   };
 }
 
+const launcher = require("./lib/launcher");
 const bridge = new MicropadBridge(cfg);
 bridge.start();
 
@@ -110,9 +111,14 @@ function serveStatic(req, res, urlPath) {
 // Run an action command configured for a bottom key.
 function runAction(action) {
   if (!action || action.type !== "cmd" || !action.cmd) return { ok: false, error: "no cmd configured" };
-  const base = path.join(__dirname, "..", "..", "..", "_macropad");
-  const cmdPath = path.join(base, action.cmd);
-  if (!fs.existsSync(cmdPath)) return { ok: false, error: `cmd not found: ${action.cmd}` };
+  const cmdPath = launcher.resolveCmd(action.cmd, cfg);
+  if (!cmdPath) {
+    return {
+      ok: false,
+      error: `cmd not found: ${action.cmd}`,
+      searched: launcher.describe(cfg).map((c) => c.dir),
+    };
+  }
   // Spawn detached so the launcher runs independent of this process.
   const child = execFile("cmd.exe", ["/c", "start", "", cmdPath], { windowsHide: true, detached: true }, (e) => {});
   child.unref();
