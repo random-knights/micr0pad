@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="app.css?v=20260902-p70">
+  <link rel="stylesheet" href="app.css?v=20260902-p71">
 </head>
 <body>
   <div class="site-backdrop" aria-hidden="true"></div>
@@ -210,8 +210,16 @@
         </div>
 
         <div class="panel no-shrink" id="actionPanel">
-          <h2>Action Keys <span class="hint">(incl. talk)</span></h2>
+          <h2 class="row-head">
+            <span>Action Keys <span class="hint">(incl. talk)</span></span>
+            <span class="head-actions">
+              <button id="actionSettings" type="button" class="icon-btn" title="Configure what each action key runs" aria-label="Configure action keys">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm7.4-2.6.1-.9-.1-.9 1.9-1.5-1.9-3.2-2.3.8a7 7 0 0 0-1.6-.9L14.9 4h-3.8l-.6 2.3c-.6.2-1.1.5-1.6.9l-2.3-.8L4.7 9.6l1.9 1.5-.1.9.1.9-1.9 1.5 1.9 3.2 2.3-.8c.5.4 1 .7 1.6.9l.6 2.3h3.8l.6-2.3c.6-.2 1.1-.5 1.6-.9l2.3.8 1.9-3.2-1.9-1.5z"/></svg>
+              </button>
+            </span>
+          </h2>
           <div id="actionButtons" class="actions"></div>
+          <div id="actionEditor" class="action-editor" hidden></div>
         </div>
 
         <div class="panel" id="herdrPanel">
@@ -231,6 +239,6 @@
       <p class="family-footer-line family-footer-mobile"><span>Random Knights, LLC &#127979; 2025-2030 &#128760; roswell</span><span>ga &#127825; <a class="family-link family-link-xyz" href="https://randomknights.xyz" aria-label="randomknights.xyz documentation site">&#7450;k.xyz</a> + <a class="family-link family-link-llc" href="https://randomknights.llc" aria-label="randomknights.llc company site">&#7450;k.llc</a> + <a class="family-link family-link-org" href="https://randomknights.org" aria-label="randomknights.org nonprofit site">&#7450;k.org</a> &#127984; <a class="family-link family-link-app" href="https://rand0m.ai" aria-label="rand0m.ai application">rand0m.ai</a></span></p>
     </footer>
   </div>
-  <script src="app.js?v=20260902-p70"></script>
+  <script src="app.js?v=20260902-p71"></script>
 </body>
 </html>

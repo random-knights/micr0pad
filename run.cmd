@@ -2,14 +2,15 @@
 REM run.cmd - start MicroPad with a sane AIEDS log path.
 REM
 REM The server reads the AIEDS log from AIEDS_LOG_PATH, falling back to
-REM <repo>\aieds-local.jsonl. If this machine already has a workspace log from
-REM an earlier install, point at that one so the panel keeps its history;
-REM otherwise the repo-local file is used and the hook fills it in over time.
+REM <repo>\aieds-local.jsonl. If AIEDS_LOG_PATH is already set in the
+REM environment it is left alone. Otherwise, if a log exists in a _state folder
+REM beside the repo - the layout this app grew up in - that one is used, so an
+REM existing history keeps showing.
 
 setlocal
 if "%AIEDS_LOG_PATH%"=="" (
-  if exist "C:\rand0m\_state\aieds-local.jsonl" (
-    set "AIEDS_LOG_PATH=C:\rand0m\_state\aieds-local.jsonl"
+  if exist "%~dp0..\_state\aieds-local.jsonl" (
+    set "AIEDS_LOG_PATH=%~dp0..\_state\aieds-local.jsonl"
   )
 )
 if not "%AIEDS_LOG_PATH%"=="" echo AIEDS log: %AIEDS_LOG_PATH%

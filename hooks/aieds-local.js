@@ -65,9 +65,9 @@
  * COST (added 2026-09-01)
  * Claude Code here is subscription billed, so no per-token money changes hands.
  * costUsdModeled is what the same tokens would cost at published API list
- * prices, and it is only ever produced from _state/aieds-rates.json - a model
+ * prices, and it is only ever produced from lib/aieds-rates.json - a model
  * the owner has not priced there gets NO cost field rather than a guess. The
- * arithmetic lives in _state/aieds-cost.js and prices cache writes and cache
+ * arithmetic lives in lib/aieds-cost.js and prices cache writes and cache
  * reads at their own multipliers, which matters enormously for a cache-heavy
  * client. Every priced row carries costBasis:"list-price-modeled" and the
  * ratesVersion that produced it.

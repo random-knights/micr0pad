@@ -365,7 +365,7 @@ function renderSlots() {
       const pane = btn.dataset.pane;
       const cwd = btn.dataset.cwd;
       if (!pane) return;
-      const dir = prompt("cd this agent into which folder?", cwd || "C:\\rand0m");
+      const dir = prompt("cd this agent into which folder?", cwd || "");
       if (!dir) return;
       const r = await fetch("/api/cd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pane, cwd: dir }) });
       const j = await r.json();
@@ -388,7 +388,17 @@ function renderActions() {
     btn.textContent = `${key}: ${action.label || key}`;
     btn.onclick = async () => {
       btn.disabled = true;
-      await fetch("/api/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }) });
+      try {
+        const r = await fetch("/api/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key }),
+        });
+        const j = await r.json();
+        if (!j.ok) knobNote(btn, key + ": " + (j.error || "failed"));
+      } catch (e) {
+        knobNote(btn, key + ": " + e.message);
+      }
       btn.disabled = false;
     };
     row1.appendChild(btn);
@@ -404,14 +414,115 @@ function renderActions() {
   talkBtn.onclick = () => toggleTalk(talkBtn);
   row2.appendChild(talkBtn);
   const t = state.config.actions.terminal;
-  if (t && t.type === "cmd") {
+  if (t) {
     const btn = document.createElement("button");
-    btn.textContent = `>_: ${t.label || "Claude"}`;
-    btn.onclick = async () => { await fetch("/api/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "terminal" }) }); };
+    btn.textContent = `>_: ${t.label || "Terminal"}`;
+    btn.onclick = async () => {
+      try {
+        const r = await fetch("/api/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "terminal" }),
+        });
+        const j = await r.json();
+        if (!j.ok) knobNote(btn, "terminal: " + (j.error || "failed"));
+      } catch (e) {
+        knobNote(btn, "terminal: " + e.message);
+      }
+    };
     row2.appendChild(btn);
   }
   box.appendChild(row2);
 }
+
+// Action key settings. The defaults ship unconfigured on purpose - naming one
+// team's scripts would give every other install five dead buttons - so this is
+// how a key gets its job: a label, whether it runs anything, and the command.
+// The command is resolved server-side through lib/launcher.js, and the editor
+// shows the directory it will be looked for in so nobody has to guess.
+let actionPathInfo = null;
+
+async function renderActionEditor() {
+  const box = document.getElementById("actionEditor");
+  if (!box || !state.config || !state.config.actions) return;
+  if (!actionPathInfo) {
+    try { actionPathInfo = await getJSON("/api/actions/paths"); } catch (_) { actionPathInfo = {}; }
+  }
+  const where = actionPathInfo.resolved
+    ? "Commands are looked for in " + actionPathInfo.resolved
+    : "No command directory found yet - create one (any of: " +
+      (actionPathInfo.searched || []).slice(0, 3).map((c) => c.dir).join(", ") + ")";
+
+  let html = '<p class="ae-where">' + esc(where) + "</p>";
+  for (const [key, action] of Object.entries(state.config.actions)) {
+    const isTalk = key === "talk";
+    html +=
+      '<div class="ae-row" data-key="' + esc(key) + '">' +
+      '<span class="ae-key">' + esc(key) + "</span>" +
+      '<input type="text" class="ae-label" value="' + esc(action.label || "") + '" maxlength="40" placeholder="label">' +
+      (isTalk
+        ? '<span class="ae-run">voice input - no command</span><span></span>'
+        : '<input type="text" class="ae-cmd" value="' + esc(action.cmd || "") +
+          '" maxlength="260" placeholder="something.cmd">' +
+          '<label class="ae-run"><input type="checkbox" class="ae-type"' +
+          (action.type === "cmd" ? " checked" : "") + "> run</label>") +
+      "</div>";
+  }
+  html +=
+    '<div class="section-actions">' +
+    '<button id="saveActions" class="primary">Save</button>' +
+    '<span id="actionsMsg" class="save-msg"></span>' +
+    "</div>";
+  box.innerHTML = html;
+
+  document.getElementById("saveActions").onclick = async () => {
+    const actions = {};
+    for (const row of box.querySelectorAll(".ae-row")) {
+      const key = row.dataset.key;
+      const label = row.querySelector(".ae-label").value;
+      const cmdEl = row.querySelector(".ae-cmd");
+      const typeEl = row.querySelector(".ae-type");
+      actions[key] = cmdEl
+        ? { label, cmd: cmdEl.value.trim(), type: typeEl && typeEl.checked ? "cmd" : "none" }
+        : { label };
+    }
+    const msg = document.getElementById("actionsMsg");
+    try {
+      const r = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actions }),
+      });
+      const j = await r.json();
+      if (j.ok) {
+        state.config = j.config;
+        lastConfigJson = JSON.stringify(state.config);
+        msg.textContent = "saved";
+        renderActions();
+        renderActionEditor();
+      } else {
+        msg.textContent = "error: " + (j.error || "unknown");
+      }
+    } catch (e) {
+      msg.textContent = "error: " + e.message;
+    }
+    setTimeout(() => { msg.textContent = ""; }, 2500);
+  };
+}
+
+function wireActionSettings() {
+  const btn = document.getElementById("actionSettings");
+  const box = document.getElementById("actionEditor");
+  if (!btn || !box) return;
+  btn.onclick = () => {
+    const open = box.hidden;
+    box.hidden = !open;
+    btn.classList.toggle("is-on", open);
+    btn.setAttribute("aria-expanded", String(open));
+    if (open) renderActionEditor();
+  };
+}
+wireActionSettings();
 
 // Voice-to-text + gold-pulse talk toggle. Uses the Web Speech API when the
 // browser supports it; the recognized words are copied to the clipboard so the
@@ -805,7 +916,7 @@ function renderAiedsTotals(a) {
 //
 // Cost and runtime come from the SessionEnd hook as of 2026-09-01:
 //   cost    - costUsdModeled, a MODELLED LIST PRICE, not billed spend (this
-//             client is subscription billed). Priced from _state/aieds-rates.json;
+//             client is subscription billed). Priced from lib/aieds-rates.json;
 //             a model with no entry there contributes nothing. Older rows are
 //             priced on read from the same table, so the history is complete.
 //   runtime - avgResponseMs, the mean gap between the row that prompted a
@@ -842,7 +953,7 @@ const METRICS = [
     get: (d) => d.costUsd,
     fmtVal: (v) => "$" + fmtDec(v, 2),
     on: false,
-    emptyNote: "no model in this window has a price in _state/aieds-rates.json",
+    emptyNote: "no model in this window has a price in lib/aieds-rates.json",
   },
 ];
 let aiedsSeries = null;

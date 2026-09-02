@@ -589,6 +589,54 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .panel h2.row-head > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel h2.row-head .copy-btn { flex: none; }
 .head-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn svg { width: 14px; height: 14px; fill: currentColor; }
+.icon-btn:hover { color: var(--ink); border-color: var(--focus); }
+.icon-btn.is-on { color: #15170f; background: var(--focus); border-color: var(--focus); }
+
+/* Action key editor: one row per key, label + what it runs. */
+.action-editor { flex: none; margin-top: 10px; }
+.action-editor .ae-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 6px;
+}
+.action-editor .ae-key { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); }
+.action-editor input[type="text"] {
+  min-width: 0;
+  background: #22261a;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 11px;
+}
+.action-editor input.ae-cmd { font-family: "IBM Plex Mono", monospace; }
+.action-editor .ae-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.action-editor .ae-run input { accent-color: var(--orange); }
+.action-editor .ae-where { font-size: 10px; color: var(--muted); margin: 2px 0 8px; word-break: break-all; }
 .head-actions button.primary {
   background: var(--orange);
   color: #fff;

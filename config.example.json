@@ -92,33 +92,33 @@
   "speed": 0.5,
   "actions": {
     "bolt": {
-      "label": "Deploy wf80",
-      "type": "cmd",
-      "cmd": "staging-dispatch.cmd"
+      "label": "Action 1",
+      "type": "none",
+      "cmd": ""
     },
     "check": {
-      "label": "Judge",
-      "type": "cmd",
-      "cmd": "judge.cmd"
+      "label": "Action 2",
+      "type": "none",
+      "cmd": ""
     },
     "x": {
-      "label": "Janitor",
-      "type": "cmd",
-      "cmd": "janitor.cmd"
+      "label": "Action 3",
+      "type": "none",
+      "cmd": ""
     },
     "fork": {
-      "label": "Commit/Push",
-      "type": "cmd",
-      "cmd": "commit-push.cmd"
+      "label": "Action 4",
+      "type": "none",
+      "cmd": ""
     },
     "talk": {
       "label": "Talk (voice)",
       "type": "none"
     },
     "terminal": {
-      "label": "Claude (new tab)",
-      "type": "cmd",
-      "cmd": "claude-herdr.cmd"
+      "label": "Terminal",
+      "type": "none",
+      "cmd": ""
     }
   }
 }
