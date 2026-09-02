@@ -158,6 +158,21 @@ Screenshots and geometry come from headless Chrome driven over CDP
 against their panel's box (clipping and overlap). A green screenshot is not
 evidence on its own - measure.
 
+## Talk, and why the pad cannot dictate on its own
+
+Pressing the pad talk key reaches the page over SSE and calls the same toggle
+the on-screen button does, but Chrome will not run speech recognition for a
+document that is not focused - and `navigator.clipboard.writeText` refuses for
+the same reason. Since you press the pad precisely when you are working in
+another window, device-triggered dictation cannot work unaided.
+
+What the code does about it: transcripts go to the Notes box FIRST (focus-
+independent and visible) and the clipboard second; every speech error is
+reported in the notice line instead of being swallowed; and an unfocused talk
+press says so explicitly. `focusBrowserOnTalk` (off by default) raises the
+browser window from the server side, which is the only place that can - a page
+cannot focus itself.
+
 ## Trade-offs on record
 
 - Below 1200px viewport height the Light tile cannot show all six slot rows plus

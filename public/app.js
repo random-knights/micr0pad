@@ -419,26 +419,69 @@ function renderActions() {
 // the whole session via /api/talk.
 let talkListening = false;
 let talkRecognition = null;
+// Where a transcript goes. The clipboard is the nice case but it needs a
+// focused document, so the Notes box is written first - it always works, and
+// it is visible, which the clipboard is not.
+function deliverTranscript(text) {
+  const notes = document.getElementById("notes");
+  if (notes) {
+    notes.value = notes.value ? notes.value.replace(/\s*$/, "") + "\n" + text : text;
+  }
+  navigator.clipboard.writeText(text)
+    .then(() => talkNote("heard: " + text + " (in Notes and on the clipboard)"))
+    .catch(() => talkNote("heard: " + text + " (in Notes; clipboard needs this tab focused)"));
+}
+
+function talkNote(text) {
+  const box = document.getElementById("knobNote");
+  if (!box) return;
+  box.textContent = text;
+  clearTimeout(talkNote.timer);
+  talkNote.timer = setTimeout(() => { box.textContent = ""; }, 6000);
+}
+
 function toggleTalk(btn) {
   if (talkListening) {
     stopTalk(btn);
     return;
   }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SR) {
+  if (!SR) {
+    talkNote("this browser has no Web Speech API - use Chrome or Edge");
+  } else if (!document.hasFocus()) {
+    // The pad was pressed while the browser was in the background. The gold
+    // pulse still runs, but Chrome will not listen for an unfocused document,
+    // so say that instead of appearing to work.
+    talkNote("talk is on, but dictation needs this tab focused - click it, or press talk again here");
+  } else {
     const rec = new SR();
     rec.lang = "en-US";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      navigator.clipboard.writeText(text).catch(() => {});
+      deliverTranscript(e.results[0][0].transcript);
       stopTalk(btn);
     };
-    rec.onerror = () => stopTalk(btn);
+    rec.onerror = (e) => {
+      const why = {
+        "not-allowed": "microphone permission was denied for this page",
+        "service-not-allowed": "the browser blocked the speech service",
+        "audio-capture": "no microphone was found",
+        "no-speech": "nothing was heard",
+        aborted: "listening was interrupted - the tab probably lost focus",
+        network: "the speech service could not be reached",
+      }[e.error] || ("speech error: " + e.error);
+      talkNote(why);
+      stopTalk(btn);
+    };
     rec.onend = () => stopTalk(btn);
     talkRecognition = rec;
-    try { rec.start(); } catch (_) { talkRecognition = null; }
+    try {
+      rec.start();
+    } catch (err) {
+      talkRecognition = null;
+      talkNote("could not start listening: " + err.message);
+    }
   }
   talkListening = true;
   btn.classList.add("listening");
