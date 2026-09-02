@@ -466,8 +466,8 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
    auto top margins soak it up - so nothing pools under the last section and
    the tile title keeps its own spacing. space-between was the first attempt
    and it also opened a gap under the h2, which is not a section. */
-#outerPanel .panel-section + .panel-section { margin-top: auto; }
-#outerPanel .device-section { margin-top: auto; }
+#outerPanel > .panel-section { margin-top: auto; }
+#outerPanel > .panel-section:last-child { margin-bottom: auto; }
 /* Nothing in a section may paint over its siblings. */
 .panel-section { overflow: hidden; }
 .panel-section + .panel-section { margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(255, 124, 72, 0.18); }
