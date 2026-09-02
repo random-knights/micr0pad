@@ -110,7 +110,9 @@ function serveStatic(req, res, urlPath) {
 
 // Run an action command configured for a bottom key.
 function runAction(action) {
-  if (!action || action.type !== "cmd" || !action.cmd) return { ok: false, error: "no cmd configured" };
+  if (!action || action.type !== "cmd" || !action.cmd) {
+    return { ok: false, error: "no command set for this key - use the gear in Action Keys" };
+  }
   const cmdPath = launcher.resolveCmd(action.cmd, cfg);
   if (!cmdPath) {
     return {
@@ -162,6 +164,13 @@ const server = http.createServer((req, res) => {
     if (p === "/api/config") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(cfg));
+      return;
+    }
+    // Where action commands are searched for, so the settings editor can show
+    // it rather than making the user guess.
+    if (p === "/api/actions/paths") {
+      res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      res.end(JSON.stringify({ resolved: launcher.cmdDir(cfg), searched: launcher.describe(cfg) }));
       return;
     }
     // The effect list the outer-light animation picker renders from, so the UI
@@ -259,6 +268,24 @@ const server = http.createServer((req, res) => {
               color: typeof s.color === "string" ? s.color : cur.color,
             });
           });
+        }
+        // Action keys: label, whether the key runs anything, and what it runs.
+        // Only the six known keys are accepted, and only these three fields -
+        // the request cannot introduce a new key or a new field.
+        if (next.actions && typeof next.actions === "object") {
+          const actions = {};
+          for (const name of Object.keys(cfg.actions)) {
+            const cur = cfg.actions[name] || {};
+            const patchIn = next.actions[name];
+            if (!patchIn || typeof patchIn !== "object") { actions[name] = cur; continue; }
+            const label = typeof patchIn.label === "string" ? patchIn.label.slice(0, 40) : cur.label;
+            const cmd = typeof patchIn.cmd === "string" ? patchIn.cmd.slice(0, 260) : cur.cmd;
+            const wanted = patchIn.type === "cmd" || patchIn.type === "none" ? patchIn.type : cur.type;
+            // Asking for "cmd" with nothing to run is just "none".
+            const type = wanted === "cmd" && String(cmd || "").trim() ? "cmd" : (wanted === "cmd" ? "none" : wanted);
+            actions[name] = Object.assign({}, cur, { label, type, cmd });
+          }
+          patch.actions = actions;
         }
         if (next.underglow) {
           patch.underglow = Object.assign({}, cfg.underglow, {
@@ -456,7 +483,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Judge/Janitor: send a command to the currently focused Herdr tab's agent.
+  // Send a command to the currently focused Herdr tab's agent.
   if (req.method === "POST" && p === "/api/send") {
     let body = "";
     req.on("data", (c) => { body += c; });

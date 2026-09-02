@@ -42,8 +42,12 @@ over raw HID.
   colour override. The underglow carries the worst state across all agents.
 - **Browser mirror** of the whole pad at `http://localhost:4120`, including the
   dial and joystick, which flash when the physical controls are used.
-- **Action keys** run configured launchers (deploy, judge, janitor,
-  commit/push, new terminal). They work with or without the browser open.
+- **Action keys** run whatever you tell them to. They ship UNCONFIGURED -
+  naming one team's scripts would give every other install dead buttons - so
+  set each key from the gear in the Action Keys tile: a label, the command, and
+  whether it runs. Commands are looked for in MICROPAD_CMD_DIR, the config
+  cmdDir, <app>/cmd, then a sibling _macropad folder, and the editor shows you
+  which directory it resolved. Keys work with or without the browser open.
 - **Talk key** - Web Speech voice-to-text. The transcript lands in the Notes
   box and on the clipboard, with a gold underglow pulse while listening.
   Dictation needs the MicroPad tab focused: Chrome will not listen for a
