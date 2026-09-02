@@ -1,0 +1,114 @@
+{
+  "pollIntervalMs": 2500,
+  "slots": [
+    {
+      "slot": 0,
+      "name": "claude 1",
+      "agent": "claude",
+      "match": "claude",
+      "color": "#ff4124"
+    },
+    {
+      "slot": 1,
+      "name": "claude 2",
+      "agent": "claude",
+      "match": "claude",
+      "color": "#7c4dff"
+    },
+    {
+      "slot": 2,
+      "name": "codex",
+      "agent": "codex",
+      "match": "codex",
+      "color": "#00b0ff"
+    },
+    {
+      "slot": 3,
+      "name": "gemini",
+      "agent": "gemini",
+      "match": "gemini",
+      "color": "#00c853"
+    },
+    {
+      "slot": 4,
+      "name": "grok",
+      "agent": "grok",
+      "match": "grok",
+      "color": "#ffa000"
+    },
+    {
+      "slot": 5,
+      "name": "huggingface",
+      "agent": "hermes",
+      "match": "hermes",
+      "color": "#90a4ae"
+    }
+  ],
+  "statusColors": {
+    "blocked": {
+      "color": 16723245,
+      "effect": 4,
+      "label": "Blocked"
+    },
+    "working": {
+      "color": 16728356,
+      "effect": 1,
+      "label": "Working"
+    },
+    "done": {
+      "color": 45311,
+      "effect": 1,
+      "label": "Done"
+    },
+    "idle": {
+      "color": 51283,
+      "effect": 1,
+      "label": "Idle"
+    },
+    "unknown": {
+      "color": 9479342,
+      "effect": 1,
+      "label": "Unknown"
+    }
+  },
+  "underglowPriority": [
+    "blocked",
+    "working",
+    "done",
+    "unknown",
+    "idle"
+  ],
+  "brightness": 1,
+  "speed": 0.5,
+  "actions": {
+    "bolt": {
+      "label": "Deploy wf80",
+      "type": "cmd",
+      "cmd": "staging-dispatch.cmd"
+    },
+    "check": {
+      "label": "Judge",
+      "type": "cmd",
+      "cmd": "judge.cmd"
+    },
+    "x": {
+      "label": "Janitor",
+      "type": "cmd",
+      "cmd": "janitor.cmd"
+    },
+    "fork": {
+      "label": "Commit/Push",
+      "type": "cmd",
+      "cmd": "commit-push.cmd"
+    },
+    "talk": {
+      "label": "Talk (voice)",
+      "type": "none"
+    },
+    "terminal": {
+      "label": "Claude (new tab)",
+      "type": "cmd",
+      "cmd": "claude-herdr.cmd"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "_readme": [
+    "Per-token LIST prices used to model a dollar figure for local Claude Code",
+    "sessions. This machine's Claude Code is SUBSCRIPTION billed, so nothing here",
+    "is money that was actually charged - it is what the same tokens would cost at",
+    "published API list prices. Rows carry costBasis:'list-price-modeled' so the",
+    "distinction survives into the log.",
+    "",
+    "Matching order: exact id in models{}, then the LONGEST matching entry in",
+    "prefixes[]. A model that matches neither gets NO cost field - never a guess.",
+    "",
+    "cacheMultipliers apply to the input rate: cache writes bill ~1.25x an input",
+    "token and cache reads ~0.1x. Claude Code is cache-heavy, so leaving these out",
+    "would overstate cost by roughly 8x.",
+    "",
+    "Owner: verify against https://www.anthropic.com/pricing (and each other",
+    "vendor's page) and bump ratesVersion when you change a number."
+  ],
+  "ratesVersion": "2026-09-01",
+  "currency": "USD",
+  "source": "Anthropic published API list prices, per the claude-api skill table cached 2026-06-24. Non-Anthropic providers are intentionally absent until the owner fills them in.",
+  "cacheMultipliers": {
+    "write": 1.25,
+    "read": 0.1
+  },
+  "models": {
+    "claude-fable-5": { "inPer1M": 10.0, "outPer1M": 50.0 },
+    "claude-mythos-5": { "inPer1M": 10.0, "outPer1M": 50.0 },
+    "claude-opus-5": { "inPer1M": 5.0, "outPer1M": 25.0 },
+    "claude-sonnet-5": { "inPer1M": 2.0, "outPer1M": 10.0 },
+    "claude-sonnet-4-6": { "inPer1M": 3.0, "outPer1M": 15.0 }
+  },
+  "prefixes": [
+    { "prefix": "claude-opus-4-8", "inPer1M": 5.0, "outPer1M": 25.0 },
+    { "prefix": "claude-opus-4-7", "inPer1M": 5.0, "outPer1M": 25.0 },
+    { "prefix": "claude-opus-4-6", "inPer1M": 5.0, "outPer1M": 25.0 },
+    { "prefix": "claude-haiku-4-5", "inPer1M": 1.0, "outPer1M": 5.0 }
+  ],
+  "unpricedNote": "gpt-*, gemini-*, grok-* and <synthetic> have no entry here on purpose: this file only carries prices the owner has verified. Add them to models{} or prefixes[] to include those rows in the cost figures."
+}

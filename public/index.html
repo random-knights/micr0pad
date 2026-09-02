@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Micr0Pad</title>
+  <link rel="icon" type="image/png" href="favicon.png?v=20260901">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="app.css?v=20260902-p69">
+</head>
+<body>
+  <div class="site-backdrop" aria-hidden="true"></div>
+  <div class="site-grid" aria-hidden="true"></div>
+  <div class="edge-glow" aria-hidden="true"></div>
+  <div class="page-shell">
+    <header class="brand-row">
+      <svg class="rk-mark" viewBox="0 0 393.05 350.2" aria-hidden="true">
+        <path fill="#fff" d="M40.04,173.2c6.08-7.55-2.39-29.9-6.22-38.34-4.63-10.22-16.94-22.43-18.56-32.57-2.3-14.38,5.54-43.33,24.17-41.42,13.8,1.41,27.43,30.16,32.93,41.85,3.95,8.4,14.66,41.79,18.35,45.58,4.61,4.73,24.5,1.27,28.85-3.24,2.2-2.28,3.17-7.98,3.67-11.25,3.8-24.95-8.46-52.38.78-75.94,2.37-6.04,10.75-17.17,16.94-19.27,43.68-14.87,26.21,65.89,25.39,87.18-1.8,46.48,5.96,96.15,2.3,142.95-1.46,18.58-13.1,40.56-33.3,43.43-12.38,1.76-48.98,1.7-61.43,0-43.41-5.95-98.43-77.63-62.07-117.11,6.59-7.16,23.02-15.41,28.2-21.84ZM123.36,264.98c5.41-7.56-.81-31.48-1.66-41.11-.58-6.59,1.9-29.29-2.01-32.11-7.28-5.26-21.99,9.38-28.5,12.3-26.61,11.92-61.38,4.04-36.46,44.15,13.9,22.37,21.22,16.44,44.54,17.26,5.36.19,20.04,5.16,24.09-.49Z"/>
+        <path fill="#fff" d="M246.67,143.03c4.67,4.93,101.67-47.26,114.52-52.83,42.04-.29,40.28,35.33,7.63,52.46-6.99,3.67-26.78,7.79-30.54,12.08-9.82,11.17,6.79,30.12,11.09,40.11,4.72,10.97,6.34,22.97,10.75,34.01,8.05,20.13,46.71,82.83,6.44,90.63-40.32,7.81-46.15-77.31-57.02-101.85-1.17-2.64-19.89-30.69-21.3-31.99-5.75-5.33-39.47,9.21-41.23,14.21-2.55,7.27,3.77,40.34,4.09,50.81.17,5.35-2.56,10.8-2.41,16.95.64,25.55,16.52,93.34-29.8,81.14-12.88-3.39-18.14-17.92-19.2-29.81-3.04-33.92,4-78.16,4.44-112.95.39-31.22-.51-62.76-2.25-93.82-.39-6.96-4.38-16.49-3.75-23,1.96-20.46,43.21-31.01,48.1-8.56,1.09,5.02,2.28,19.34,2.55,25.16.59,12.59-.06,24.88-2.1,37.26Z"/>
+        <path fill="#e8bf03" d="M323.41,25.81c6.6,4.56,29.38-32.78,35.89-13.47,2.09,6.19-13.3,59.55-17.65,62.66-4.89,3.5-47.53,4.84-55.65,4.18-4.4-.36-16.84-2.3-19.65-4.88-2.91-2.67-12.56-42.34-12.86-47.98-1.48-27.77,31.54,4.58,35.75,1.62,2.79-9.15,7.73-29.8,20.21-27.81,8.77,1.4,12.44,24.64,13.95,25.68Z"/>
+      </svg>
+      <span class="wordmark">Micr0Pad</span>
+      <span class="beta">BETA</span>
+    </header>
+
+    <div class="layout-3col">
+      <!-- COLUMN 1: Live Slots + Install commands + Notes -->
+      <div class="col">
+        <div class="panel grow" id="slotsPanel">
+          <h2 class="row-head">
+            <span>Live Slots <span class="hint">(click CD to cd that agent into a workspace)</span></span>
+            <span class="head-actions"><button id="copyInstall" class="copy-btn" title="Copy every install command">copy installs</button></span>
+          </h2>
+          <h3 class="subhead">Agents on the pad</h3>
+          <div class="table-scroll">
+            <table id="slotTable" class="slot-table">
+              <thead><tr><th>Key</th><th>Slot Name</th><th>Agent</th><th>Status</th><th>Worktree</th><th>Title</th><th>CD</th><th>Focus</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="rk-bars-fill" aria-hidden="true">
+            <img src="ruok.gif?v=20260901" alt="" class="rk-filler-img">
+          </div>
+          <h3 class="subhead">Providers <span class="hint">(blurb, install command, site - click a command to copy)</span></h3>
+          <div class="install-list">
+            <div class="install-row">
+              <span class="p-desc"><strong>Claude</strong> - advanced coding, prose, large docs.</span>
+              <code class="p-cmd" data-cmd="npm i -g @anthropic-ai/claude-code" title="npm i -g @anthropic-ai/claude-code (click to copy)">npm i -g @anthropic-ai/claude-code</code>
+              <a href="https://claude.ai" target="_blank" rel="noopener">claude.ai</a>
+            </div>
+            <div class="install-row">
+              <span class="p-desc"><strong>Codex (OpenAI)</strong> - versatile, agentic tasks.</span>
+              <code class="p-cmd" data-cmd="npm i -g @openai/codex" title="npm i -g @openai/codex (click to copy)">npm i -g @openai/codex</code>
+              <a href="https://openai.com" target="_blank" rel="noopener">openai.com</a>
+            </div>
+            <div class="install-row">
+              <span class="p-desc"><strong>Gemini</strong> - huge context, multimodal, Workspace.</span>
+              <code class="p-cmd" data-cmd="npm i -g @google/gemini-cli" title="npm i -g @google/gemini-cli (click to copy)">npm i -g @google/gemini-cli</code>
+              <a href="https://gemini.google.com" target="_blank" rel="noopener">gemini.google.com</a>
+            </div>
+            <div class="install-row">
+              <span class="p-desc"><strong>Grok</strong> - real-time data, live event tracking.</span>
+              <code class="p-cmd" data-cmd="npm i -g @xai/grok-cli" title="npm i -g @xai/grok-cli (click to copy)">npm i -g @xai/grok-cli</code>
+              <a href="https://x.ai" target="_blank" rel="noopener">x.ai</a>
+            </div>
+            <div class="install-row">
+              <span class="p-desc"><strong>HuggingFace</strong> - open model hub, datasets.</span>
+              <code class="p-cmd" data-cmd="pip install huggingface_hub" title="pip install huggingface_hub (click to copy)">pip install huggingface_hub</code>
+              <a href="https://huggingface.co" target="_blank" rel="noopener">huggingface.co</a>
+            </div>
+            <div class="install-row">
+              <span class="p-desc"><strong>Ollama</strong> - private, offline local agents.</span>
+              <code class="p-cmd" data-cmd="ollama pull llama3.2" title="ollama pull llama3.2 (click to copy)">ollama pull llama3.2</code>
+              <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel notes-panel grow" id="notesPanel">
+          <h2>Notes <span class="hint">(prep commands or paste talk-to-text)</span></h2>
+          <textarea id="notes" class="notes" placeholder="Type or paste a command here to copy into an agent..."></textarea>
+          <div class="notes-actions">
+            <button id="copyNotes" class="primary">Copy</button>
+            <button id="clearNotes" class="primary ghost">Clear</button>
+            <span id="notesMsg" class="save-msg"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMN 2: Pad + Light Test + Outer Light & Slot Names -->
+      <div class="col">
+        <div class="panel pad-panel no-shrink" id="pad-panel">
+          <div class="pad-head">
+            <div class="pad-head-text">
+              <h2>Micropad</h2>
+              <div id="statusLine" class="device-status">connecting...</div>
+              <div id="hostname" class="hostname"></div>
+            </div>
+            <button type="button" class="pad-mark mark-flip" id="creditFlip" title="credits" aria-label="Show credits">
+              <span class="mark-flip-inner">
+                <span class="mark-face mark-front"><img src="developer.png?v=20260901" alt="developer mark"></span>
+                <span class="mark-face mark-back">
+                  <span class="credit-line">inspired by</span>
+                  <a class="credit-link" href="https://schacon.github.io/micro-manager/" target="_blank" rel="noopener">/micro-manager</a>
+                </span>
+              </span>
+            </button>
+            <button type="button" class="pad-mark mark-flip" id="sourceFlip" title="credits" aria-label="Show source">
+              <span class="mark-flip-inner">
+                <span class="mark-face mark-front"><img src="0p.png?v=20260901" alt="0P mark"></span>
+                <span class="mark-face mark-back">
+                  <span class="credit-line">source at</span>
+                  <a class="credit-link" href="https://github.com/random-knights/micr0pad" target="_blank" rel="noopener">/micr0pad</a>
+                </span>
+              </span>
+            </button>
+            <button type="button" class="pad-mark mark-flip" id="builtByFlip" title="credits" aria-label="Show credits">
+              <span class="mark-flip-inner">
+                <span class="mark-face mark-front"><img src="engineer.png?v=20260901" alt="AIEDS engineer mark"></span>
+                <span class="mark-face mark-back">
+                  <span class="credit-line">created by</span>
+                  <a class="credit-link" href="https://github.com/random-knights" target="_blank" rel="noopener">/random-knights</a>
+                </span>
+              </span>
+            </button>
+          </div>
+          <div id="pad" class="pad"></div>
+          <div id="knobNote" class="knob-note"></div>
+          <div class="legend">
+            <span class="lg"><i style="background:#ff2d2d"></i>blocked</span>
+            <span class="lg"><i style="background:#7c4dff"></i>working</span>
+            <span class="lg"><i style="background:#00b0ff"></i>done</span>
+            <span class="lg"><i style="background:#00c853"></i>idle</span>
+            <span class="lg"><i style="background:#90a4ae"></i>unknown</span>
+          </div>
+        </div>
+
+        <div class="panel grow" id="outerPanel">
+          <h2>Light Test &amp; Slot Name</h2>
+          <div class="panel-section">
+            <h3 class="subhead">Slot Names &amp; Colors <span class="hint">(config.json)</span></h3>
+            <div id="slotEdit" class="slot-edit"></div>
+            <div class="section-actions">
+              <button id="saveSlots" class="primary">Save</button>
+              <span id="saveMsg" class="save-msg"></span>
+            </div>
+          </div>
+          <div class="panel-section hug">
+            <h3 class="subhead">Outer Light Config <span class="hint">(underglow)</span></h3>
+            <div id="underglowEdit" class="slot-edit"></div>
+            <div id="animSection" hidden>
+              <h3 class="subhead">Outer Light Animation <span class="hint">(firmware effects)</span></h3>
+              <div id="underglowAnim" class="anim-grid"></div>
+            </div>
+            <div class="section-actions">
+              <button id="saveUnderglow" class="primary">Save</button>
+              <span id="ugMsg" class="save-msg"></span>
+            </div>
+          </div>
+
+          <div class="panel-section hug device-section">
+            <h3 class="subhead">Band Connections <span class="hint">(one host at a time)</span></h3>
+            <div id="bandList" class="band-list"></div>
+            <div class="device-actions">
+              <button id="backupKeymap" type="button" class="device-btn" hidden>back up keymap</button>
+              <button id="pairMode" type="button" class="device-btn">pair</button>
+              <button id="revertKeymap" type="button" class="device-btn danger">revert keymap</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMN 3: System + Action Keys -->
+      <div class="col">
+        <div class="panel grow" id="sysPanel">
+          <h2>System <span class="hint">PC resource monitor &amp; tasks</span></h2>
+          <div class="sys-metrics">
+            <div class="sys-bar"><span class="sys-lbl">CPU</span><div class="sys-track"><div id="cpuBar" class="sys-fill"></div></div><span id="cpuPct" class="sys-val">-</span></div>
+            <div class="sys-bar"><span class="sys-lbl">RAM</span><div class="sys-track"><div id="memBar" class="sys-fill"></div></div><span id="memPct" class="sys-val">-</span></div>
+            <div class="sys-line sys-line-row">
+              <span id="memDetail" class="sys-muted">-</span>
+              <span id="procCount" class="sys-muted">-</span>
+              <span id="upTime" class="sys-muted">-</span>
+            </div>
+          </div>
+          <h3 class="subhead">Top Processes <span class="hint">(by memory)</span></h3>
+          <div class="proc-scroll">
+            <table id="procTable" class="slot-table">
+              <thead><tr><th>PID</th><th>Name</th><th>Mem</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <h3 class="subhead">AIEDS v2.0.0 Estimates</h3>
+          <div class="aieds-mini">
+            <div id="debugAieds" class="debug-aieds aieds-scroll"></div>
+            <h3 class="subhead trend-head">30-day Trend</h3>
+            <div id="aiedsStats" class="aieds-totals" hidden></div>
+            <div id="aiedsChartRow" class="aieds-chart-row" hidden>
+              <div class="aieds-chart-wrap">
+                <div id="aiedsChips" class="aieds-chips"></div>
+                <svg id="aiedsChart" class="aieds-chart" preserveAspectRatio="none" role="img" aria-label="AIEDS daily trend, last 30 days"></svg>
+                <div id="aiedsRange" class="aieds-range"></div>
+              </div>
+            </div>
+            <p class="aieds-fineprint" title="AIEDS v2.0.0 - modeled energy and carbon, not measured. Cost is modeled at published list prices, not billed spend.">read more @ <a href="https://randomknights.xyz/aieds" target="_blank" rel="noopener">randomknights.xyz/aieds</a></p>
+          </div>
+
+        </div>
+
+        <div class="panel no-shrink" id="actionPanel">
+          <h2>Action Keys <span class="hint">(incl. talk)</span></h2>
+          <div id="actionButtons" class="actions"></div>
+        </div>
+
+        <div class="panel" id="herdrPanel">
+          <h2>Works with Herdr</h2>
+          <p class="panel-subtitle">use the <a href="https://worklouder.cc/codex-micro" target="_blank" rel="noopener">Codex Micro</a> or <a href="https://worklouder.cc/creator-micro-2" target="_blank" rel="noopener">Creator Micro 2</a> on <a href="https://herdr.dev" target="_blank" rel="noopener">Herdr.dev</a> with any AI provider</p>
+          <div class="install-list">
+            <div class="install-row">
+              <code class="p-cmd" data-cmd="powershell -ExecutionPolicy Bypass -c &quot;irm https://herdr.dev/install.ps1 | iex&quot;" title="Windows install (click to copy)">powershell -ExecutionPolicy Bypass -c &quot;irm https://herdr.dev/install.ps1 | iex&quot;</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="family-footer">
+      <p class="family-footer-line family-footer-desktop">Random Knights, LLC &#127979; 2025-2030 &#128760; roswell, ga &#127825; <a class="family-link family-link-xyz" href="https://randomknights.xyz" aria-label="randomknights.xyz documentation site">&#7450;k.xyz</a> + <a class="family-link family-link-llc" href="https://randomknights.llc" aria-label="randomknights.llc company site">&#7450;k.llc</a> + <a class="family-link family-link-org" href="https://randomknights.org" aria-label="randomknights.org nonprofit site">&#7450;k.org</a> &#127984; <a class="family-link family-link-app" href="https://rand0m.ai" aria-label="rand0m.ai application">rand0m.ai</a></p>
+      <p class="family-footer-line family-footer-mobile"><span>Random Knights, LLC &#127979; 2025-2030 &#128760; roswell</span><span>ga &#127825; <a class="family-link family-link-xyz" href="https://randomknights.xyz" aria-label="randomknights.xyz documentation site">&#7450;k.xyz</a> + <a class="family-link family-link-llc" href="https://randomknights.llc" aria-label="randomknights.llc company site">&#7450;k.llc</a> + <a class="family-link family-link-org" href="https://randomknights.org" aria-label="randomknights.org nonprofit site">&#7450;k.org</a> &#127984; <a class="family-link family-link-app" href="https://rand0m.ai" aria-label="rand0m.ai application">rand0m.ai</a></span></p>
+    </footer>
+  </div>
+  <script src="app.js?v=20260902-p69"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "micr0pad",
+  "version": "0.1.0",
+  "description": "Live AI-agent status lights on a Work Louder Codex Micro or Creator Micro 2: per-key RGB driven by Herdr agent state, a browser mirror, voice-to-text and AIEDS energy estimates. Node, raw HID, no vendor app.",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "probe": "node probe.js",
+    "backup-keymap": "node backup-keymap.js",
+    "restore-keymap": "node restore-keymap.js",
+    "add-layers": "node add-layers.js",
+    "bind-dial-joy": "node bind-dial-joy.js",
+    "lights-off": "node lights-off.js"
+  },
+  "dependencies": {
+    "node-hid": "^3.1.2"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/random-knights/micr0pad.git"
+  },
+  "homepage": "https://github.com/random-knights/micr0pad#readme"
+}

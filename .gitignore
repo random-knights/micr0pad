@@ -1,0 +1,20 @@
+# Node artifacts
+node_modules/
+*.log
+
+# Local config (owner edits this; example checked in)
+config.json
+
+# Device keymap backups
+keymap-backup*.json
+
+# AIEDS local log and hook state (per machine)
+aieds-local.jsonl
+aieds-local-cursor.json
+aieds-local.log
+aieds-hook-last-payload.json
+
+# Scratch/test scripts
+test-herdr.js
+light-test.js
+*.tmp
