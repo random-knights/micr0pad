@@ -6,7 +6,7 @@ download. It needs Node.js 18+ on the machine (node-hid ships a prebuilt
 Windows x64 binary here, node-napi-v4, which works across modern Node
 versions; if Node ever refuses to load it, run `npm rebuild node-hid`).
 
-1. UNZIP anywhere, e.g. D:\LABs\micr0pad
+1. UNZIP anywhere. Any folder you can write to will do.
 
 2. PLUG IN the pad (Work Louder Codex Micro or Creator Micro 2).
 

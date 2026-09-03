@@ -2,6 +2,9 @@
   "pollIntervalMs": 2500,
   "cmdDir": null,
   "focusBrowserOnTalk": false,
+  "analytics": {
+    "enabled": false
+  },
   "slots": [
     {
       "slot": 0,

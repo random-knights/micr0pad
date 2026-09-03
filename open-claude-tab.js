@@ -1,10 +1,10 @@
 "use strict";
 // open-claude-tab.js - open a NEW Herdr tab running Claude Code.
 // Uses the herdr CLI: creates a tab, then starts claude in its root pane.
-// Usage: node open-claude-tab.js [cwd]
+// Usage: node open-claude-tab.js [cwd]   (default: the current directory)
 const { execFile } = require("child_process");
 
-const cwd = process.argv[2] || "C:\\rand0m";
+const cwd = process.argv[2] || process.cwd();
 
 function run(args) {
   return new Promise((resolve, reject) => {

@@ -5,7 +5,10 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
+    "prestart": "node scripts/preflight.js",
     "start": "node server.js",
+    "test": "node --test test/",
+    "analytics": "node scripts/analytics-report.js",
     "probe": "node probe.js",
     "backup-keymap": "node backup-keymap.js",
     "restore-keymap": "node restore-keymap.js",
@@ -21,5 +24,28 @@
     "type": "git",
     "url": "git+https://github.com/random-knights/micr0pad.git"
   },
-  "homepage": "https://github.com/random-knights/micr0pad#readme"
+  "homepage": "https://github.com/random-knights/micr0pad#readme",
+  "bin": {
+    "micr0pad": "bin/micr0pad.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "docs/",
+    "hooks/",
+    "lib/",
+    "public/",
+    "scripts/",
+    "config.example.json",
+    "run.cmd",
+    "server.js",
+    "add-layers.js",
+    "backup-keymap.js",
+    "bind-dial-joy.js",
+    "lights-off.js",
+    "probe.js",
+    "restore-keymap.js"
+  ]
 }

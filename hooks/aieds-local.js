@@ -17,7 +17,7 @@
  *
  * THE FORMULA IS COPIED, NOT REINVENTED
  * The constants and the two functions below are a literal port of
- * C:\rand0m\ruok functions/src/index.ts:
+ * the reference implementation in the ruok repo, functions/src/index.ts:
  *   lines 225-257    the constants and the per-model-prefix profiles
  *   lines 1210-1235  aiedsProfileForModel and estimateAiedsImpact
  * That TypeScript is itself a mirror of rk_ai lib/src/impact/ai_impact.dart,
