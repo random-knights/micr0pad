@@ -23,9 +23,14 @@ versions; if Node ever refuses to load it, run `npm rebuild node-hid`).
 
 5. START it:
 
-       run.cmd
+       npm start
 
    then open http://localhost:4120
+
+   npm start also copies config.example.json to config.json the first
+   time, so there is nothing to edit before the pad works. run.cmd does
+   the same thing and additionally points the energy panel at a shared
+   AIEDS log if one sits beside the folder.
 
 Herdr
 -----

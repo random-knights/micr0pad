@@ -38,7 +38,13 @@ test("no tracked file carries an absolute path from the author's machine", () =>
     const body = read(file);
     // Any Windows drive-letter path. A public repo should not know where a
     // particular person keeps their files.
-    const matches = body.match(/[A-Za-z]:\\[A-Za-z0-9_.\\-]+/g) || [];
+    //
+    // The drive letter has to be preceded by something that is not a letter,
+    // or "see why:\n" in a source string reads as the drive "y:" followed by
+    // an escape. That false positive is not hypothetical; it is why this
+    // pattern is spelled out rather than being the obvious short version.
+    const matches = [...body.matchAll(/(?:^|[^A-Za-z])([A-Za-z]:\\[A-Za-z0-9_.-]+(?:\\[A-Za-z0-9_.-]+)*)/g)]
+      .map((m) => m[1]);
     // C:\path and C:\Users\you are teaching examples, not real locations.
     const real = matches.filter((m) => !/^[A-Za-z]:\\(path|Users\\you|full)\b/i.test(m));
     if (real.length) offenders.push(`${file}: ${real.join(", ")}`);
