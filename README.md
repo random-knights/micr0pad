@@ -170,8 +170,10 @@ point `cmdDir` in `config.json` somewhere else. Search order:
 3. `<app>/cmd`
 4. a sibling `_macropad` folder
 
-`config.json` is created from `config.example.json` on first run and is yours -
-slot matching rules, colours, action commands and the outer light all live there.
+The app runs on built-in defaults until you change something; the first save
+writes `config.json`, which is then yours - slot matching rules, colours, action
+commands and the outer light all live there. `config.example.json` is the same
+structure to crib from, and `RK_MICROPAD_PORT` moves the server off 4120.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

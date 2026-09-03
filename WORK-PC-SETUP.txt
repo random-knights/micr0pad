@@ -1,0 +1,58 @@
+0P_Micr0Pad - portable install
+==============================
+
+This zip is self-contained: node_modules is included, so there is nothing to
+download. It needs Node.js 18+ on the machine (node-hid ships a prebuilt
+Windows x64 binary here, node-napi-v4, which works across modern Node
+versions; if Node ever refuses to load it, run `npm rebuild node-hid`).
+
+1. UNZIP anywhere, e.g. D:\LABs\micr0pad
+
+2. PLUG IN the pad (Work Louder Codex Micro or Creator Micro 2).
+
+3. BACK UP THE KEYMAP FIRST - this is the only way back to stock, and the app
+   refuses to overwrite a backup once one exists:
+
+       npm run backup-keymap
+
+4. BIND the dial and joystick, and give the touch sensor layers to cycle
+   through. Both write to device flash:
+
+       npm run bind-dial-joy
+       npm run add-layers -- --write
+
+5. START it:
+
+       run.cmd
+
+   then open http://localhost:4120
+
+Herdr
+-----
+The agent status lights read from Herdr, so it needs to be installed and on
+PATH. Without it the pad still runs; the slots just sit idle.
+
+    powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"
+
+Action keys
+-----------
+The four action keys and the terminal key ship EMPTY. Click the gear in the
+Action Keys tile, give each key a label and a command, and tick "run". The
+editor shows which directory it looks in; the simplest option is to create a
+`cmd` folder inside this one and drop .cmd files there.
+
+Nothing in this zip points at another machine's scripts. The app runs on
+built-in defaults and writes config.json the first time you save a setting.
+If port 4120 is taken on this machine, set RK_MICROPAD_PORT before starting.
+
+AIEDS energy panel (optional)
+-----------------------------
+Empty until you install the SessionEnd hook - see the README section. The log
+lands next to the app as aieds-local.jsonl unless AIEDS_LOG_PATH says otherwise.
+
+Talk key
+--------
+Dictation needs the browser tab focused: Chrome will not run speech recognition
+for a background window. Pressing talk on the PAD while you work elsewhere
+lights the pulse and says so. Set "focusBrowserOnTalk": true in config.json to
+have the pad raise the window first.
