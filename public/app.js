@@ -29,6 +29,28 @@ async function getJSON(url) {
   return await r.json();
 }
 
+// Pairing token bootstrap: fetched once, same-origin only (server.js sends
+// no Access-Control-Allow-Origin on this route, so no other origin's JS can
+// read the response even though the request reaches the server). Attached
+// to every state-changing request below; without it the server refuses.
+let pairingTokenPromise = null;
+function pairingToken() {
+  if (!pairingTokenPromise) pairingTokenPromise = fetch("/api/pairing-token").then((r) => r.json()).then((j) => j.token);
+  return pairingTokenPromise;
+}
+
+// POST helper for every mutating route: JSON body, Content-Type, and the
+// pairing token header. Callers use the returned Response exactly as a
+// plain fetch() POST - only the request itself changed.
+async function apiPost(url, body) {
+  const token = await pairingToken();
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Pairing-Token": token },
+    body: JSON.stringify(body === undefined ? {} : body),
+  });
+}
+
 // Slot names live in config.json. Every tile reads them through here, so a
 // rename lands on the pad mirror, the Live Slots table and the light test at
 // the same moment - not whenever the device bridge next re-snapshots.
@@ -80,11 +102,7 @@ function makeKnob(kind) {
       ? { dir: forward ? 1 : -1 }
       : { dir: forward ? "e" : "w" };
     try {
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const r = await apiPost(url, body);
       const j = await r.json();
       // The bridge's own notice ("no focused agent to retune", "model -> x")
       // is the honest result here, so show it rather than a fake tick.
@@ -161,11 +179,7 @@ function renderBands() {
 // Shared by the bands and the pair button.
 async function setPairing(active) {
   try {
-    const r = await fetch("/api/pair", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: !!active }),
-    });
+    const r = await apiPost("/api/pair", { active: !!active });
     const j = await r.json();
     if (j.ok) {
       state.pairing = !!j.pairing;
@@ -228,11 +242,7 @@ async function wireKeymapButtons() {
   backup.onclick = async () => {
     backup.disabled = true;
     try {
-      const r = await fetch("/api/keymap/backup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
+      const r = await apiPost("/api/keymap/backup", {});
       const j = await r.json();
       say(j.ok ? "keymap backed up - revert is now available" : "backup failed: " + (j.error || r.status));
       if (j.ok) { backup.hidden = true; revert.disabled = false; }
@@ -252,7 +262,7 @@ async function wireKeymapButtons() {
     revert.disabled = true;
     say("restoring keymap...");
     try {
-      const r = await fetch("/api/keymap/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const r = await apiPost("/api/keymap/restore", {});
       const j = await r.json();
       say(j.ok ? j.note : "revert failed: " + (j.error || j.note || r.status));
     } catch (e) {
@@ -367,7 +377,7 @@ function renderSlots() {
       if (!pane) return;
       const dir = prompt("cd this agent into which folder?", cwd || "");
       if (!dir) return;
-      const r = await fetch("/api/cd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pane, cwd: dir }) });
+      const r = await apiPost("/api/cd", { pane, cwd: dir });
       const j = await r.json();
       btn.textContent = j.ok ? "ok" : "err";
       setTimeout(() => { btn.textContent = "cd"; }, 1500);
@@ -389,11 +399,7 @@ function renderActions() {
     btn.onclick = async () => {
       btn.disabled = true;
       try {
-        const r = await fetch("/api/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key }),
-        });
+        const r = await apiPost("/api/action", { key });
         const j = await r.json();
         if (!j.ok) knobNote(btn, key + ": " + (j.error || "failed"));
       } catch (e) {
@@ -419,11 +425,7 @@ function renderActions() {
     btn.textContent = `>_: ${t.label || "Terminal"}`;
     btn.onclick = async () => {
       try {
-        const r = await fetch("/api/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: "terminal" }),
-        });
+        const r = await apiPost("/api/action", { key: "terminal" });
         const j = await r.json();
         if (!j.ok) knobNote(btn, "terminal: " + (j.error || "failed"));
       } catch (e) {
@@ -488,11 +490,7 @@ async function renderActionEditor() {
     }
     const msg = document.getElementById("actionsMsg");
     try {
-      const r = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actions }),
-      });
+      const r = await apiPost("/api/config", { actions });
       const j = await r.json();
       if (j.ok) {
         state.config = j.config;
@@ -597,7 +595,7 @@ function toggleTalk(btn) {
   talkListening = true;
   btn.classList.add("listening");
   btn.textContent = "talk: listening... (click to stop)";
-  fetch("/api/talk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: true }) });
+  apiPost("/api/talk", { active: true });
 }
 
 function stopTalk(btn) {
@@ -607,7 +605,7 @@ function stopTalk(btn) {
     btn.classList.remove("listening");
     btn.textContent = "talk: Talk (voice)";
   }
-  fetch("/api/talk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: false }) });
+  apiPost("/api/talk", { active: false });
 }
 
 // Light test renders ONLY the 6 agent keys (no action buttons) in physical
@@ -632,7 +630,7 @@ function renderLightTest() {
       btn.onclick = async () => {
         // effect 4 = breathing/pulse so the key visibly flashes on click,
         // confirming the index-to-physical-key mapping.
-        await fetch("/api/light", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keyID: k, color: parseInt(c.slice(1), 16), effect: 4 }) });
+        await apiPost("/api/light", { keyID: k, color: parseInt(c.slice(1), 16), effect: 4 });
       };
       rowEl.appendChild(btn);
     }
@@ -689,7 +687,7 @@ function renderSlotEdit() {
     test.onclick = async () => {
       const keyID = assignedKeyID(s.slot);
       const c = (s.color || "#ff4124");
-      await fetch("/api/light", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keyID, color: parseInt(c.slice(1), 16), effect: 4 }) });
+      await apiPost("/api/light", { keyID, color: parseInt(c.slice(1), 16), effect: 4 });
     };
     row.appendChild(test);
     box.appendChild(row);
@@ -702,7 +700,7 @@ function renderSlotEdit() {
       const color = box.querySelector(`input[data-slot="${s.slot}"][data-field="color"]`).value;
       slots.push({ slot: s.slot, name, color });
     }
-    const r = await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slots }) });
+    const r = await apiPost("/api/config", { slots });
     const j = await r.json();
     const msg = document.getElementById("saveMsg");
     if (j.ok) {
@@ -778,7 +776,7 @@ function renderUnderglow() {
       // "state" or a firmware effect id; the server validates the range.
       animation: animEl ? (animEl.value === "state" ? "state" : Number(animEl.value)) : "state",
     };
-    const r = await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ underglow }) });
+    const r = await apiPost("/api/config", { underglow });
     const j = await r.json();
     const msg = document.getElementById("ugMsg");
     if (j.ok) {
@@ -1108,7 +1106,7 @@ async function renderSysMonitor() {
           const pid = btn.dataset.pid;
           const name = btn.dataset.name;
           if (!confirm(`End task ${name} (PID ${pid})?`)) return;
-          const r = await fetch("/api/sys/kill", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pid: Number(pid) }) });
+          const r = await apiPost("/api/sys/kill", { pid: Number(pid) });
           const j = await r.json();
           btn.textContent = j.ok ? "killed" : "err";
           setTimeout(() => { btn.textContent = "end"; }, 1500);
