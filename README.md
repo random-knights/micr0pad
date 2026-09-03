@@ -113,20 +113,6 @@ If port 4120 is taken, set `RK_MICROPAD_PORT` to something else before starting.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- SCREENS -->
-
-## <span style="color:#555555"><u> **THE APP** </u></span>
-
-<div align="center">
-  <img alt="MicroPad running: live slots, pad mirror, light and slot editor, system and AIEDS panels" src="assets/app-screenshot.png">
-</div>
-
-Left: the live agent table and the provider install commands. Middle: the pad
-mirror, the light and slot editor, and the connection bands. Right: the system
-monitor and the energy panel, with the action keys and Herdr underneath.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 <!-- WHAT IT DOES -->
 
 ## <span style="color:#555555"><u> **WHAT IT DOES** </u></span>
