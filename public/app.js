@@ -862,11 +862,11 @@ async function renderDebug() {
       aiedsEl.innerHTML = h;
       renderAiedsTotals(a);
     } else {
-      // No stats recorded yet: show the engineer placeholder centered, plus a
-      // short description drawn from the AIEDS reference (randomknights.xyz/aieds).
+      // No stats recorded yet: the engineer mark already appears on this page
+      // as a credit button, so don't repeat it here as a placeholder image -
+      // just the description. The chart below still renders, empty.
       aiedsEl.innerHTML = `
         <div class="aieds-empty">
-          <img src="engineer.png" alt="AIEDS engineer placeholder" class="aieds-placeholder" />
           <p class="aieds-empty-title">No AIEDS stats recorded yet.</p>
           <p>AIEDS is the provider-neutral standard for reporting modeled energy and carbon from AI work. Methodology 2.0.0 is energy-first:</p>
           <ul>
@@ -890,11 +890,11 @@ function esc(s) {
 // meaningless eight-digit number.
 function renderAiedsTotals(a) {
   const box = document.getElementById("aiedsStats");
-  const row = document.getElementById("aiedsChartRow");
   if (!box) return;
   if (!a || !a.rows) {
+    // The totals strip has nothing to show at zero rows, but the chart below
+    // stays visible in its own empty state - drawAiedsChart owns that, not us.
     box.hidden = true;
-    if (row) row.hidden = true;
     return;
   }
   const treeYears = (+a.totalTreeMin || 0) / 525600;
@@ -1014,9 +1014,23 @@ function renderAiedsChips() {
 function drawAiedsChart() {
   const svg = document.getElementById("aiedsChart");
   const row = document.getElementById("aiedsChartRow");
-  if (!svg || !row || !aiedsSeries || aiedsSeries.length < 2) return;
+  if (!svg || !row || !aiedsSeries) return;
   const w = 320, h = 100, padL = 3, padR = 3, padT = 8, padB = 6;
   const n = aiedsSeries.length;
+  if (n < 2) {
+    // No activity yet: draw the same chart frame with a flat dashed baseline
+    // instead of hiding the whole row behind a static image - it's still the
+    // chart, just with nothing recorded, same idea as an empty table.
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    svg.innerHTML =
+      '<line x1="0" y1="' + (h - padB) + '" x2="' + w + '" y2="' + (h - padB) +
+      '" stroke="rgba(255,124,72,0.28)" stroke-width="1" stroke-dasharray="4 3" ' +
+      'vector-effect="non-scaling-stroke"/>';
+    const range0 = document.getElementById("aiedsRange");
+    if (range0) range0.textContent = "no activity yet";
+    row.hidden = false;
+    return;
+  }
   const x = (i) => padL + (i * (w - padL - padR)) / (n - 1);
   const norm = (v, max) => {
     if (max <= 0) return 0;
@@ -1208,6 +1222,7 @@ renderDebug();
 // Subscribe to device key events over SSE so the app reacts to physical key
 // presses (talk toggle, action runs) without polling. When the device talk key
 // is pressed, the talk button state and the gold pulse follow.
+let lastTalkKeyAt = 0;
 function connectEvents() {
   const es = new EventSource("/api/events");
   es.onmessage = (ev) => {
@@ -1218,6 +1233,14 @@ function connectEvents() {
       return;
     }
     if (msg.type === "actkey" && (msg.index === 10 || msg.index === 11) && msg.pressed) {
+      // The wide talk key is two switches (firmware ids 10 and 11) under one
+      // keycap, so one physical press sends two "actkey" events milliseconds
+      // apart. Without this guard the second event immediately reversed the
+      // first - start listening, then instantly stop - so no transcript ever
+      // had time to be heard. Same bug fixed server-side in bridge.js.
+      const now = Date.now();
+      if (now - lastTalkKeyAt < 250) return;
+      lastTalkKeyAt = now;
       // Device talk key toggled: flip the app talk state to match.
       const btn = document.getElementById("talkBtn");
       if (talkListening) stopTalk(btn); else toggleTalk(btn);

@@ -2,7 +2,7 @@
 
 <!-- HEADER -->
 <div align="center">
-  <img alt="Random Knights 0P MicroPad" src="assets/readme-header.png">
+  <img alt="Random Knights 0P MicroPad" src="assets/readme-header.gif?v=20260903">
 
 <h3 align="center" style="color:#ff4124">0P_Micr0Pad</h3>
 

@@ -683,14 +683,6 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .aieds-empty .aieds-empty-title { font-weight: 700; color: var(--ink); margin: 0 0 6px; }
 .aieds-empty ul { margin: 6px 0; padding-left: 18px; }
 .aieds-empty code { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--focus); }
-.aieds-empty .aieds-placeholder {
-  display: block;
-  margin: 0 auto 12px;
-  max-width: 120px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  opacity: 0.85;
-}
 /* PC resource monitor */
 .sys-metrics { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 8px; flex: none; }
 .sys-bar { display: flex; align-items: center; gap: 8px; }
@@ -810,13 +802,15 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
   padding: 10px 0;
 }
 .rk-bars { width: min(260px, 66%); height: auto; opacity: 0.9; }
-/* height:auto keeps the box on the artwork's own aspect ratio - with
-   object-fit the image was letterboxed inside a wider box, so the rounded
-   corners clipped empty space instead of the artwork. */
+/* .rk-bars-fill's height is whatever flex space is left over between the two
+   Live Slots sections - it changes with window height, so no fixed gif size
+   fits it exactly. object-fit:cover fills the box on both axes and crops
+   instead of squashing, so the source aspect ratio never gets distorted. A
+   wide banner around 4:1 (e.g. 800x200) gives the most usable crop room. */
 .rk-filler-img {
   width: 100%;
-  height: auto;
-  max-height: 100%;
+  height: 100%;
+  object-fit: cover;
   border-radius: 16px;
   opacity: 0.95;
 }
