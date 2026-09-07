@@ -29,6 +29,28 @@ async function getJSON(url) {
   return await r.json();
 }
 
+// Pairing token bootstrap: fetched once, same-origin only (server.js sends
+// no Access-Control-Allow-Origin on this route, so no other origin's JS can
+// read the response even though the request reaches the server). Attached
+// to every state-changing request below; without it the server refuses.
+let pairingTokenPromise = null;
+function pairingToken() {
+  if (!pairingTokenPromise) pairingTokenPromise = fetch("/api/pairing-token").then((r) => r.json()).then((j) => j.token);
+  return pairingTokenPromise;
+}
+
+// POST helper for every mutating route: JSON body, Content-Type, and the
+// pairing token header. Callers use the returned Response exactly as a
+// plain fetch() POST - only the request itself changed.
+async function apiPost(url, body) {
+  const token = await pairingToken();
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Pairing-Token": token },
+    body: JSON.stringify(body === undefined ? {} : body),
+  });
+}
+
 // Slot names live in config.json. Every tile reads them through here, so a
 // rename lands on the pad mirror, the Live Slots table and the light test at
 // the same moment - not whenever the device bridge next re-snapshots.
@@ -80,11 +102,7 @@ function makeKnob(kind) {
       ? { dir: forward ? 1 : -1 }
       : { dir: forward ? "e" : "w" };
     try {
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const r = await apiPost(url, body);
       const j = await r.json();
       // The bridge's own notice ("no focused agent to retune", "model -> x")
       // is the honest result here, so show it rather than a fake tick.
@@ -161,11 +179,7 @@ function renderBands() {
 // Shared by the bands and the pair button.
 async function setPairing(active) {
   try {
-    const r = await fetch("/api/pair", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: !!active }),
-    });
+    const r = await apiPost("/api/pair", { active: !!active });
     const j = await r.json();
     if (j.ok) {
       state.pairing = !!j.pairing;
@@ -228,11 +242,7 @@ async function wireKeymapButtons() {
   backup.onclick = async () => {
     backup.disabled = true;
     try {
-      const r = await fetch("/api/keymap/backup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
+      const r = await apiPost("/api/keymap/backup", {});
       const j = await r.json();
       say(j.ok ? "keymap backed up - revert is now available" : "backup failed: " + (j.error || r.status));
       if (j.ok) { backup.hidden = true; revert.disabled = false; }
@@ -252,7 +262,7 @@ async function wireKeymapButtons() {
     revert.disabled = true;
     say("restoring keymap...");
     try {
-      const r = await fetch("/api/keymap/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const r = await apiPost("/api/keymap/restore", {});
       const j = await r.json();
       say(j.ok ? j.note : "revert failed: " + (j.error || j.note || r.status));
     } catch (e) {
@@ -367,7 +377,7 @@ function renderSlots() {
       if (!pane) return;
       const dir = prompt("cd this agent into which folder?", cwd || "");
       if (!dir) return;
-      const r = await fetch("/api/cd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pane, cwd: dir }) });
+      const r = await apiPost("/api/cd", { pane, cwd: dir });
       const j = await r.json();
       btn.textContent = j.ok ? "ok" : "err";
       setTimeout(() => { btn.textContent = "cd"; }, 1500);
@@ -389,11 +399,7 @@ function renderActions() {
     btn.onclick = async () => {
       btn.disabled = true;
       try {
-        const r = await fetch("/api/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key }),
-        });
+        const r = await apiPost("/api/action", { key });
         const j = await r.json();
         if (!j.ok) knobNote(btn, key + ": " + (j.error || "failed"));
       } catch (e) {
@@ -419,11 +425,7 @@ function renderActions() {
     btn.textContent = `>_: ${t.label || "Terminal"}`;
     btn.onclick = async () => {
       try {
-        const r = await fetch("/api/action", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: "terminal" }),
-        });
+        const r = await apiPost("/api/action", { key: "terminal" });
         const j = await r.json();
         if (!j.ok) knobNote(btn, "terminal: " + (j.error || "failed"));
       } catch (e) {
@@ -488,11 +490,7 @@ async function renderActionEditor() {
     }
     const msg = document.getElementById("actionsMsg");
     try {
-      const r = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actions }),
-      });
+      const r = await apiPost("/api/config", { actions });
       const j = await r.json();
       if (j.ok) {
         state.config = j.config;
@@ -597,7 +595,7 @@ function toggleTalk(btn) {
   talkListening = true;
   btn.classList.add("listening");
   btn.textContent = "talk: listening... (click to stop)";
-  fetch("/api/talk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: true }) });
+  apiPost("/api/talk", { active: true });
 }
 
 function stopTalk(btn) {
@@ -607,7 +605,7 @@ function stopTalk(btn) {
     btn.classList.remove("listening");
     btn.textContent = "talk: Talk (voice)";
   }
-  fetch("/api/talk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: false }) });
+  apiPost("/api/talk", { active: false });
 }
 
 // Light test renders ONLY the 6 agent keys (no action buttons) in physical
@@ -632,7 +630,7 @@ function renderLightTest() {
       btn.onclick = async () => {
         // effect 4 = breathing/pulse so the key visibly flashes on click,
         // confirming the index-to-physical-key mapping.
-        await fetch("/api/light", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keyID: k, color: parseInt(c.slice(1), 16), effect: 4 }) });
+        await apiPost("/api/light", { keyID: k, color: parseInt(c.slice(1), 16), effect: 4 });
       };
       rowEl.appendChild(btn);
     }
@@ -689,7 +687,7 @@ function renderSlotEdit() {
     test.onclick = async () => {
       const keyID = assignedKeyID(s.slot);
       const c = (s.color || "#ff4124");
-      await fetch("/api/light", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keyID, color: parseInt(c.slice(1), 16), effect: 4 }) });
+      await apiPost("/api/light", { keyID, color: parseInt(c.slice(1), 16), effect: 4 });
     };
     row.appendChild(test);
     box.appendChild(row);
@@ -700,9 +698,9 @@ function renderSlotEdit() {
     for (const s of state.config.slots) {
       const name = box.querySelector(`input[data-slot="${s.slot}"][data-field="name"]`).value;
       const color = box.querySelector(`input[data-slot="${s.slot}"][data-field="color"]`).value;
-      slots.push({ slot: s.slot, name, color });
+      slots.push({ ...s, name, color });
     }
-    const r = await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slots }) });
+    const r = await apiPost("/api/config", { slots });
     const j = await r.json();
     const msg = document.getElementById("saveMsg");
     if (j.ok) {
@@ -778,7 +776,7 @@ function renderUnderglow() {
       // "state" or a firmware effect id; the server validates the range.
       animation: animEl ? (animEl.value === "state" ? "state" : Number(animEl.value)) : "state",
     };
-    const r = await fetch("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ underglow }) });
+    const r = await apiPost("/api/config", { underglow });
     const j = await r.json();
     const msg = document.getElementById("ugMsg");
     if (j.ok) {
@@ -834,7 +832,7 @@ async function renderUnderglowAnimation() {
   }
 }
 
-// Debug panel: herdr agent status/cwd for all + AIEDS aggregate for claude.
+// Debug panel: herdr agent status/cwd for all + AiEDs aggregate for claude.
 async function renderDebug() {
   const agentsEl = document.getElementById("debugAgents");
   const aiedsEl = document.getElementById("debugAieds");
@@ -862,13 +860,11 @@ async function renderDebug() {
       aiedsEl.innerHTML = h;
       renderAiedsTotals(a);
     } else {
-      // No stats recorded yet: show the engineer placeholder centered, plus a
-      // short description drawn from the AIEDS reference (randomknights.xyz/aieds).
+      // No stats recorded yet: keep the real empty chart and its explanation.
       aiedsEl.innerHTML = `
         <div class="aieds-empty">
-          <img src="engineer.png" alt="AIEDS engineer placeholder" class="aieds-placeholder" />
-          <p class="aieds-empty-title">No AIEDS stats recorded yet.</p>
-          <p>AIEDS is the provider-neutral standard for reporting modeled energy and carbon from AI work. Methodology 2.0.0 is energy-first:</p>
+          <p class="aieds-empty-title">No AiEDs stats recorded yet.</p>
+          <p>AiEDs is the provider-neutral standard for reporting modeled energy and carbon from AI work. Methodology 2.0.0 is energy-first:</p>
           <ul>
             <li><strong>Energy</strong> = (input/1000 &times; whPer1kIn + output/1000 &times; whPer1kOut) &times; PUE.</li>
             <li><strong>Carbon</strong> = energy (kWh) &times; grid intensity (429 gCO2e/kWh).</li>
@@ -885,23 +881,21 @@ async function renderDebug() {
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
-// AIEDS aggregate strip. Tree-time is the same calculation as before, in
+// AiEDs aggregate strip. Tree-time is the same calculation as before, in
 // mature-reference-tree YEARS: minutes / 525600. In minutes it read as a
 // meaningless eight-digit number.
 function renderAiedsTotals(a) {
   const box = document.getElementById("aiedsStats");
-  const row = document.getElementById("aiedsChartRow");
   if (!box) return;
   if (!a || !a.rows) {
     box.hidden = true;
-    if (row) row.hidden = true;
     return;
   }
   const treeYears = (+a.totalTreeMin || 0) / 525600;
   // Terse labels so all six figures fit one line in the tile; the long form
   // lives in each item's tooltip.
   box.innerHTML =
-    `<span title="sessions in the local AIEDS log"><b>${fmtDec(a.rows, 0)}</b> sessions</span>` +
+    `<span title="sessions in the local AiEDs log"><b>${fmtDec(a.rows, 0)}</b> sessions</span>` +
     `<span title="total tokens"><b>${fmt(a.totalTokens)}</b> tokens</span>` +
     `<span title="modeled energy"><b>${fmtDec((+a.totalEnergyWh || 0) / 1000, 1)}</b> kWh</span>` +
     `<span title="modeled carbon in kilograms CO2e"><b>${fmtDec((+a.totalCarbonG || 0) / 1000, 1)}</b> kg</span>` +
@@ -925,7 +919,7 @@ function renderAiedsTotals(a) {
 //             line starts empty and fills in from here.
 // A chip whose series is entirely zero disables itself and says why.
 //
-// Energy, carbon and tree-time are fixed multiples of each other in AIEDS v2
+// Energy, carbon and tree-time are fixed multiples of each other in AiEDs v2
 // (carbon = energy * grid intensity, tree-time = carbon / tree rate), so those
 // three lines coincide exactly by construction. Each line is scaled to its own
 // peak, and the scale is log by default because a single heavy day is ~15x a
@@ -1014,9 +1008,20 @@ function renderAiedsChips() {
 function drawAiedsChart() {
   const svg = document.getElementById("aiedsChart");
   const row = document.getElementById("aiedsChartRow");
-  if (!svg || !row || !aiedsSeries || aiedsSeries.length < 2) return;
+  if (!svg || !row || !aiedsSeries) return;
   const w = 320, h = 100, padL = 3, padR = 3, padT = 8, padB = 6;
   const n = aiedsSeries.length;
+  if (n < 2) {
+    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+    svg.innerHTML =
+      '<line x1="0" y1="' + (h - padB) + '" x2="' + w + '" y2="' + (h - padB) +
+      '" stroke="rgba(255,124,72,0.28)" stroke-width="1" stroke-dasharray="4 3" ' +
+      'vector-effect="non-scaling-stroke"/>';
+    const range0 = document.getElementById("aiedsRange");
+    if (range0) range0.textContent = "no activity yet";
+    row.hidden = false;
+    return;
+  }
   const x = (i) => padL + (i * (w - padL - padR)) / (n - 1);
   const norm = (v, max) => {
     if (max <= 0) return 0;
@@ -1108,7 +1113,7 @@ async function renderSysMonitor() {
           const pid = btn.dataset.pid;
           const name = btn.dataset.name;
           if (!confirm(`End task ${name} (PID ${pid})?`)) return;
-          const r = await fetch("/api/sys/kill", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pid: Number(pid) }) });
+          const r = await apiPost("/api/sys/kill", { pid: Number(pid) });
           const j = await r.json();
           btn.textContent = j.ok ? "killed" : "err";
           setTimeout(() => { btn.textContent = "end"; }, 1500);
@@ -1208,6 +1213,7 @@ renderDebug();
 // Subscribe to device key events over SSE so the app reacts to physical key
 // presses (talk toggle, action runs) without polling. When the device talk key
 // is pressed, the talk button state and the gold pulse follow.
+let lastTalkKeyAt = 0;
 function connectEvents() {
   const es = new EventSource("/api/events");
   es.onmessage = (ev) => {
@@ -1218,6 +1224,9 @@ function connectEvents() {
       return;
     }
     if (msg.type === "actkey" && (msg.index === 10 || msg.index === 11) && msg.pressed) {
+      const now = Date.now();
+      if (now - lastTalkKeyAt < 250) return;
+      lastTalkKeyAt = now;
       // Device talk key toggled: flip the app talk state to match.
       const btn = document.getElementById("talkBtn");
       if (talkListening) stopTalk(btn); else toggleTalk(btn);

@@ -8,11 +8,14 @@ config.json
 # Device keymap backups
 keymap-backup*.json
 
-# AIEDS local log and hook state (per machine)
+# AiEDs local log and hook state (per machine)
 aieds-local.jsonl
 aieds-local-cursor.json
 aieds-local.log
 aieds-hook-last-payload.json
+
+# Local analytics log (opt-in, per machine, never committed)
+analytics-local.jsonl
 
 # Scratch/test scripts
 test-herdr.js

@@ -80,7 +80,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline
 
 /* Desktop: the whole app is sized to the viewport - the page itself never
    scrolls. Anything that can outgrow its panel (slot table, process list,
-   AIEDS table) scrolls inside its own box instead. Below 1300px the layout
+   AiEDs table) scrolls inside its own box instead. Below 1300px the layout
    reflows to 2/1 columns and normal document scrolling comes back. */
 @media (min-width: 1301px) and (min-height: 800px) {
   html, body { height: 100%; overflow: hidden; }
@@ -683,14 +683,6 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .aieds-empty .aieds-empty-title { font-weight: 700; color: var(--ink); margin: 0 0 6px; }
 .aieds-empty ul { margin: 6px 0; padding-left: 18px; }
 .aieds-empty code { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--focus); }
-.aieds-empty .aieds-placeholder {
-  display: block;
-  margin: 0 auto 12px;
-  max-width: 120px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  opacity: 0.85;
-}
 /* PC resource monitor */
 .sys-metrics { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 8px; flex: none; }
 .sys-bar { display: flex; align-items: center; gap: 8px; }
@@ -705,7 +697,7 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .aieds-scroll, .debug-aieds { flex: 1 1 0; min-height: clamp(58px, 9vh, 96px); overflow: auto; }
 .debug-aieds { margin-bottom: 0; }
 .aieds-fineprint { font-size: 10px; color: var(--muted); margin-top: 4px; padding-top: 0; line-height: 1.5; flex: none; text-align: center; }
-/* Totals strip: the AIEDS aggregate for every session in the local log. */
+/* Totals strip: the AiEDs aggregate for every session in the local log. */
 .aieds-totals {
   display: flex;
   flex-wrap: nowrap;
@@ -769,7 +761,7 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 /* Top processes: fixed-height scrollable container so it does not stretch the
    other sections; top 5 rows fit without scrolling. */
 /* basis 0, not auto: with 25 rows a content-sized basis let the process list
-   claim the whole tile and pushed the AIEDS block out the bottom. */
+   claim the whole tile and pushed the AiEDs block out the bottom. */
 .proc-scroll { flex: 1 1 0; min-height: clamp(48px, 7vh, 84px); overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
 .proc-scroll .slot-table { margin: 0; }
 /* The list is 25 deep now, so the header has to stay put while it scrolls. */
@@ -810,13 +802,12 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
   padding: 10px 0;
 }
 .rk-bars { width: min(260px, 66%); height: auto; opacity: 0.9; }
-/* height:auto keeps the box on the artwork's own aspect ratio - with
-   object-fit the image was letterboxed inside a wider box, so the rounded
-   corners clipped empty space instead of the artwork. */
+/* The available height changes with the window. Cover fills it without
+   stretching the artwork. */
 .rk-filler-img {
   width: 100%;
-  height: auto;
-  max-height: 100%;
+  height: 100%;
+  object-fit: cover;
   border-radius: 16px;
   opacity: 0.95;
 }
@@ -977,7 +968,7 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
   .family-footer-desktop { display: none; }
 }
 
-/* Tall screens: give the AIEDS model table its rows back; the process list
+/* Tall screens: give the AiEDs model table its rows back; the process list
    and the chart can spare the height. Must stay last so it wins over the base
    rules above. */
 @media (min-height: 1000px) {

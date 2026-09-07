@@ -4,6 +4,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { execFile } = require("child_process");
 const config = require("./lib/config");
 const { MicropadBridge } = require("./lib/bridge");
@@ -12,6 +13,43 @@ const PORT = process.env.RK_MICROPAD_PORT || 4120;
 const PUBLIC = path.join(__dirname, "public");
 const cfg = config.load();
 config.writeExample();
+
+// Auth for mutating routes. The token is minted by config.load() (see
+// lib/config.js) and lives on cfg.pairingToken; PAIRING_TOKEN is a private
+// copy so it never has to be re-read off the (redacted, client-facing) cfg
+// object. ALLOWED_ORIGIN follows PORT rather than hardcoding 4120, so an
+// owner who overrides RK_MICROPAD_PORT does not lock themselves out.
+const PAIRING_TOKEN = cfg.pairingToken;
+const ALLOWED_ORIGIN = `http://localhost:${PORT}`;
+
+// GET /api/config and /api/state echo the live config back to the page;
+// strip the token before it ever reaches a JSON response.
+function redactConfig(c) {
+  const { pairingToken, ...rest } = c;
+  return rest;
+}
+
+// Any tab on any site can already reach localhost, so every POST/PUT/DELETE
+// under /api/ must prove two things before its handler runs: the request
+// came from the pad's own page (Origin), and it is the pad's own page, not
+// just any page on that origin (the pairing token). Browsers attach an
+// Origin header to every non-GET fetch, same-origin included, so failing
+// closed on a missing Origin does not affect the real UI.
+function authorizeMutation(req, res) {
+  if (req.headers.origin !== ALLOWED_ORIGIN) {
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
+    return false;
+  }
+  const supplied = Buffer.from(String(req.headers["x-pairing-token"] || ""), "utf8");
+  const expected = Buffer.from(PAIRING_TOKEN, "utf8");
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+    res.writeHead(401, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "pairing token required" }));
+    return false;
+  }
+  return true;
+}
 
 // The machine this micropad bridge is running on (the PC the pad is plugged
 // into). Shown in the UI so the owner can tell which host a pad is attached to.
@@ -131,6 +169,29 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
 
+  // The page's own bootstrap read: the token has to reach the UI somehow
+  // before the UI can send it back. Deliberately NO Access-Control-Allow-
+  // Origin header on this response (unlike every other /api/ route below) -
+  // a fetch from another origin still reaches this handler, but the browser
+  // will not let that page's JS read the body without a matching CORS
+  // header, so the token cannot leave this origin. Same-origin GET fetches
+  // do not carry an Origin header, so this only rejects a MISMATCHED one.
+  if (req.method === "GET" && p === "/api/pairing-token") {
+    const origin = req.headers.origin;
+    if (origin && origin !== ALLOWED_ORIGIN) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ token: PAIRING_TOKEN }));
+    return;
+  }
+
+  if (req.method !== "GET" && p.startsWith("/api/")) {
+    if (!authorizeMutation(req, res)) return;
+  }
+
   if (req.method === "GET" && p === "/api/events") {
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -157,13 +218,13 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({
         deviceUp: bridge.deviceUp(), deviceError: bridge.deviceError, pairing: !!bridge.pairing,
         hostname: HOSTNAME,
-        config: cfg, assigned,
+        config: redactConfig(cfg), assigned,
       }));
       return;
     }
     if (p === "/api/config") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(cfg));
+      res.end(JSON.stringify(redactConfig(cfg)));
       return;
     }
     // Where action commands are searched for, so the settings editor can show
@@ -303,7 +364,7 @@ const server = http.createServer((req, res) => {
         }
         const saved = config.save(patch);
         res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
-        res.end(JSON.stringify({ ok: true, config: saved }));
+        res.end(JSON.stringify({ ok: true, config: redactConfig(saved) }));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: e.message }));
@@ -522,7 +583,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Debug data: herdr agent status/cwd for all + AIEDS aggregate for claude.
+  // Debug data: herdr agent status/cwd for all + AiEDs aggregate for claude.
   // (GET handler lives in the /api/ GET block above.)
 
   if (req.method === "POST" && p === "/api/talk") {
