@@ -1,13 +1,18 @@
 "use strict";
 // One origin policy, held in place from two directions.
 //
-// The shape tests below always run: they read server.js and assert that no
-// response advertises itself as readable by any origin, and that no /api/
-// handler can run before the origin gate. The behaviour tests boot the real
-// server and ask it. Those need the HID transport to load, which it does not
-// on a CI runner installed with --ignore-scripts, so they announce a skip
-// rather than passing quietly. The skip is the honest outcome: the CI gate
-// cannot prove HTTP behaviour on a machine that cannot load the device layer.
+// The shape tests below read server.js and assert that no response
+// advertises itself as readable by any origin, and that no /api/ handler can
+// run before the origin gate. The behaviour test boots the real server and
+// asks it.
+//
+// The behaviour test needs the HID transport to LOAD, though not to find a
+// pad. It loads on the CI runner even though the gate installs with
+// --ignore-scripts, because node-hid ships prebuilds: run 34087652055 ran all
+// 28 tests with 0 skipped. The guard below stays as a safety net for a
+// platform where that stops being true, and it announces a skip rather than
+// passing quietly, because a gate that cannot load the device layer cannot
+// prove HTTP behaviour either.
 
 const test = require("node:test");
 const assert = require("node:assert");
