@@ -71,6 +71,12 @@ uses `fetch`). One runtime dependency, `node-hid`, which is native.
 There is no build step and no bundler. `public/` is served as written, so what
 you read in the file is what the browser runs.
 
+## Browser identity
+
+- Tab title: `0P | Micr0Pad`.
+- Favicon source: the owner-supplied `0P.png`, copied to `public/favicon.png`.
+- README header and demo assets live under `assets/` and must resolve locally.
+
 ## Hardware rules
 
 The pad is not a toy target: three of the scripts write to device flash.

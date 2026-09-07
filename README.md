@@ -2,7 +2,7 @@
 
 <!-- HEADER -->
 <div align="center">
-  <img alt="Random Knights 0P MicroPad" src="assets/readme-header.png">
+  <img alt="Random Knights 0P MicroPad" src="assets/readme-header.png?v=20260906">
 
 <h3 align="center" style="color:#ff4124">0P_Micr0Pad</h3>
 
@@ -50,6 +50,10 @@ Face, Ollama, anything Herdr can run.
 
 No vendor app sits in the middle. The bridge speaks the device's own JSON-RPC
 over raw HID, and what it learns about your machine stays on your machine.
+
+<div align="center">
+  <img alt="Micr0Pad running with the Random Knights agent workspace" src="assets/readme-demo.gif?v=20260906">
+</div>
 
 - Built with
   - Node, no build step. One dependency, `node-hid`, which brings two more in

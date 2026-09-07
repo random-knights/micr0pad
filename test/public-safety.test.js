@@ -11,6 +11,7 @@ const assert = require("node:assert");
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
+const crypto = require("crypto");
 
 const ROOT = path.join(__dirname, "..");
 
@@ -84,6 +85,30 @@ test("package.json declares an install a stranger can run", () => {
   assert.equal(pkg.scripts.start, "node server.js");
   assert.ok(pkg.engines && pkg.engines.node, "declare the Node floor");
   assert.ok(fs.existsSync(path.join(ROOT, pkg.bin.micr0pad)), "bin entry must exist");
+});
+
+test("the shipped browser and README use the owner-approved 0P identity", () => {
+  assert.match(read("public/index.html"), /<title>0P \| Micr0Pad<\/title>/);
+  assert.match(read("README.md"), /assets\/readme-header\.png\?v=20260906/);
+  assert.match(read("README.md"), /assets\/readme-demo\.gif\?v=20260906/);
+  for (const file of [
+    "public/favicon.png",
+    "public/0p.png",
+    "assets/readme-header.png",
+    "assets/readme-demo.gif",
+  ]) {
+    assert.ok(fs.existsSync(path.join(ROOT, file)), `${file} must exist`);
+  }
+  const favicon = fs.readFileSync(path.join(ROOT, "public/favicon.png"));
+  assert.equal(
+    crypto.createHash("sha256").update(favicon).digest("hex"),
+    "c47a9f768a1ea5592914185cb9ad7210a5e92312a80366698a5dd228476e805b",
+    "favicon.png must be the owner-supplied 0P icon",
+  );
+});
+
+test("saving slot labels preserves provider matching fields", () => {
+  assert.match(read("public/app.js"), /slots\.push\(\{ \.\.\.s, name, color \}\)/);
 });
 
 test("every tracked JavaScript file parses", () => {
