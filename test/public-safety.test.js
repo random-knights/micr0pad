@@ -91,11 +91,13 @@ test("the shipped browser and README use the owner-approved 0P identity", () => 
   assert.match(read("public/index.html"), /<title>0P \| Micr0Pad<\/title>/);
   assert.match(read("README.md"), /assets\/readme-header\.png\?v=20260906/);
   assert.match(read("README.md"), /assets\/readme-demo\.gif\?v=20260906/);
+  assert.match(read("README.md"), /assets\/app-screenshot\.png\?v=20260907/);
   for (const file of [
     "public/favicon.png",
     "public/0p.png",
     "assets/readme-header.png",
     "assets/readme-demo.gif",
+    "assets/app-screenshot.png",
   ]) {
     assert.ok(fs.existsSync(path.join(ROOT, file)), `${file} must exist`);
   }
@@ -104,6 +106,12 @@ test("the shipped browser and README use the owner-approved 0P identity", () => 
     crypto.createHash("sha256").update(favicon).digest("hex"),
     "c47a9f768a1ea5592914185cb9ad7210a5e92312a80366698a5dd228476e805b",
     "favicon.png must be the owner-supplied 0P icon",
+  );
+  const screenshot = fs.readFileSync(path.join(ROOT, "assets/app-screenshot.png"));
+  assert.equal(
+    crypto.createHash("sha256").update(screenshot).digest("hex"),
+    "4297fff696ce0ab8acf89f2190c84dc9dbd610f5bb133b3158ff57e04a4cee3d",
+    "app-screenshot.png must be the owner-approved Micr0Pad screenshot",
   );
 });
 

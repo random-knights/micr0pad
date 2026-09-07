@@ -55,6 +55,10 @@ over raw HID, and what it learns about your machine stays on your machine.
   <img alt="Micr0Pad running with the Random Knights agent workspace" src="assets/readme-demo.gif?v=20260906">
 </div>
 
+<div align="center">
+  <img alt="Micr0Pad browser dashboard" src="assets/app-screenshot.png?v=20260907">
+</div>
+
 - Built with
   - Node, no build step. One dependency, `node-hid`, which brings two more in
     with it (a clean install reports three packages).
