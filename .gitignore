@@ -8,7 +8,7 @@ config.json
 # Device keymap backups
 keymap-backup*.json
 
-# AIEDS local log and hook state (per machine)
+# AiEDs local log and hook state (per machine)
 aieds-local.jsonl
 aieds-local-cursor.json
 aieds-local.log

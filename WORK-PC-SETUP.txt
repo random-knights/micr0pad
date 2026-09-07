@@ -30,7 +30,7 @@ versions; if Node ever refuses to load it, run `npm rebuild node-hid`).
    npm start also copies config.example.json to config.json the first
    time, so there is nothing to edit before the pad works. run.cmd does
    the same thing and additionally points the energy panel at a shared
-   AIEDS log if one sits beside the folder.
+   AiEDs log if one sits beside the folder.
 
 Herdr
 -----
@@ -50,7 +50,7 @@ Nothing in this zip points at another machine's scripts. The app runs on
 built-in defaults and writes config.json the first time you save a setting.
 If port 4120 is taken on this machine, set RK_MICROPAD_PORT before starting.
 
-AIEDS energy panel (optional)
+AiEDs energy panel (optional)
 -----------------------------
 Empty until you install the SessionEnd hook - see the README section. The log
 lands next to the app as aieds-local.jsonl unless AIEDS_LOG_PATH says otherwise.

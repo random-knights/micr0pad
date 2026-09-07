@@ -12,10 +12,10 @@ lib/bridge.js        poll loop: read agents -> assign slots -> paint the pad
 lib/mapper.js        agent -> slot assignment, and the colour/effect for each
 lib/pad.js           device geometry, status colours, underglow + effect table
 lib/herdr.js         thin wrapper over the herdr CLI
-lib/aieds.js         reads the local AIEDS log into totals and a 30-day series
+lib/aieds.js         reads the local AiEDs log into totals and a 30-day series
 lib/aieds-cost.js    the one cost function (list price, never a bill)
 lib/aieds-rates.json owner-editable per-token prices
-hooks/aieds-local.js Claude Code SessionEnd hook that writes the AIEDS log
+hooks/aieds-local.js Claude Code SessionEnd hook that writes the AiEDs log
 public/              the UI: index.html, app.js, app.css, marks
 ```
 
@@ -89,7 +89,7 @@ the app offline until a restart - exactly what happens when the pad moves
 between machines. `refresh()` now retries `connect()` on every poll while
 disconnected, and a failed paint closes the handle so the next poll re-opens it.
 
-## AIEDS
+## AiEDs
 
 The hook reads the session's own transcript and sums the token counts the API
 reported. Three decisions worth keeping:
@@ -118,7 +118,7 @@ duration field: `sessionDurationMs` (wall clock, idle included),
 `sessionActiveMs` (gaps over 5 min dropped) and per-model `avgResponseMs` with
 its raw `responseMsTotal` / `responseSamples` so any average can be recomputed.
 
-Energy, carbon and tree-time are fixed multiples of each other in AIEDS v2, so
+Energy, carbon and tree-time are fixed multiples of each other in AiEDs v2, so
 those three lines on the chart coincide exactly. That is the model, not a bug -
 which is why gCO2e and tree-min are off by default.
 
@@ -145,7 +145,7 @@ Four CSS traps hit during the build, all still relevant:
   browser; the credit cards are a plain opacity crossfade now, with the blend
   mode on the image alone.
 - **`flex-basis: auto` on a long list lets it claim a whole column.** The
-  25-row process list pushed the AIEDS block off the tile until both scrollers
+  25-row process list pushed the AiEDs block off the tile until both scrollers
   moved to `flex: 1 1 0`.
 
 ## Verifying UI changes

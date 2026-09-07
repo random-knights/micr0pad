@@ -583,7 +583,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Debug data: herdr agent status/cwd for all + AIEDS aggregate for claude.
+  // Debug data: herdr agent status/cwd for all + AiEDs aggregate for claude.
   // (GET handler lives in the /api/ GET block above.)
 
   if (req.method === "POST" && p === "/api/talk") {

@@ -1,7 +1,7 @@
 {
   "name": "micr0pad",
   "version": "0.1.0",
-  "description": "Live AI-agent status lights on a Work Louder Codex Micro or Creator Micro 2: per-key RGB driven by Herdr agent state, a browser mirror, voice-to-text and AIEDS energy estimates. Node, raw HID, no vendor app.",
+  "description": "Live AI-agent status lights on a Work Louder Codex Micro or Creator Micro 2: per-key RGB driven by Herdr agent state, a browser mirror, voice-to-text and AiEDs energy estimates. Node, raw HID, no vendor app.",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /*
- * aieds-local.js - AIEDS v2 logger for LOCAL Claude Code CLI sessions.
+ * aieds-local.js - AiEDs v2 logger for LOCAL Claude Code CLI sessions.
  *
  * WHAT THIS IS
  * A Claude Code hook target. Claude Code runs it at SessionEnd and hands it a
  * JSON payload on stdin. The script reads the session's real transcript,
  * adds up the real token counts the API reported, runs them through the SAME
- * AIEDS v2 formula the app uses, and appends one line per model to
+ * AiEDs v2 formula the app uses, and appends one line per model to
  * _state/aieds-local.jsonl.
  *
  * WHAT THIS IS NOT
@@ -115,7 +115,7 @@ const IDLE_GAP_CAP_MS = 5 * 60 * 1000;
 const RESPONSE_CAP_MS = 5 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
-// AIEDS impact model v2 - literal copy of functions/src/index.ts 225-257.
+// AiEDs impact model v2 - literal copy of functions/src/index.ts 225-257.
 // Energy-first (never energy-from-carbon).
 // ---------------------------------------------------------------------------
 

@@ -832,7 +832,7 @@ async function renderUnderglowAnimation() {
   }
 }
 
-// Debug panel: herdr agent status/cwd for all + AIEDS aggregate for claude.
+// Debug panel: herdr agent status/cwd for all + AiEDs aggregate for claude.
 async function renderDebug() {
   const agentsEl = document.getElementById("debugAgents");
   const aiedsEl = document.getElementById("debugAieds");
@@ -863,8 +863,8 @@ async function renderDebug() {
       // No stats recorded yet: keep the real empty chart and its explanation.
       aiedsEl.innerHTML = `
         <div class="aieds-empty">
-          <p class="aieds-empty-title">No AIEDS stats recorded yet.</p>
-          <p>AIEDS is the provider-neutral standard for reporting modeled energy and carbon from AI work. Methodology 2.0.0 is energy-first:</p>
+          <p class="aieds-empty-title">No AiEDs stats recorded yet.</p>
+          <p>AiEDs is the provider-neutral standard for reporting modeled energy and carbon from AI work. Methodology 2.0.0 is energy-first:</p>
           <ul>
             <li><strong>Energy</strong> = (input/1000 &times; whPer1kIn + output/1000 &times; whPer1kOut) &times; PUE.</li>
             <li><strong>Carbon</strong> = energy (kWh) &times; grid intensity (429 gCO2e/kWh).</li>
@@ -881,7 +881,7 @@ async function renderDebug() {
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
-// AIEDS aggregate strip. Tree-time is the same calculation as before, in
+// AiEDs aggregate strip. Tree-time is the same calculation as before, in
 // mature-reference-tree YEARS: minutes / 525600. In minutes it read as a
 // meaningless eight-digit number.
 function renderAiedsTotals(a) {
@@ -895,7 +895,7 @@ function renderAiedsTotals(a) {
   // Terse labels so all six figures fit one line in the tile; the long form
   // lives in each item's tooltip.
   box.innerHTML =
-    `<span title="sessions in the local AIEDS log"><b>${fmtDec(a.rows, 0)}</b> sessions</span>` +
+    `<span title="sessions in the local AiEDs log"><b>${fmtDec(a.rows, 0)}</b> sessions</span>` +
     `<span title="total tokens"><b>${fmt(a.totalTokens)}</b> tokens</span>` +
     `<span title="modeled energy"><b>${fmtDec((+a.totalEnergyWh || 0) / 1000, 1)}</b> kWh</span>` +
     `<span title="modeled carbon in kilograms CO2e"><b>${fmtDec((+a.totalCarbonG || 0) / 1000, 1)}</b> kg</span>` +
@@ -919,7 +919,7 @@ function renderAiedsTotals(a) {
 //             line starts empty and fills in from here.
 // A chip whose series is entirely zero disables itself and says why.
 //
-// Energy, carbon and tree-time are fixed multiples of each other in AIEDS v2
+// Energy, carbon and tree-time are fixed multiples of each other in AiEDs v2
 // (carbon = energy * grid intensity, tree-time = carbon / tree rate), so those
 // three lines coincide exactly by construction. Each line is scaled to its own
 // peak, and the scale is log by default because a single heavy day is ~15x a

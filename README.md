@@ -65,7 +65,7 @@ over raw HID, and what it learns about your machine stays on your machine.
   - raw HID, the vendor JSON-RPC interface, not a keyboard shim
   - [Herdr](https://herdr.dev) for agent state
   - the browser's own speech recognition for voice to text
-  - [AIEDS v2.0.0](https://randomknights.xyz/aieds) for energy and carbon
+  - [AiEDs v2.0.0](https://randomknights.xyz/aieds) for energy and carbon
     estimates, off until you ask for them
   - a browser page in plain HTML, CSS and JS. View source and you have read the
     whole client.
@@ -247,7 +247,7 @@ value so both ends read the same file.
 
 Cost is a **modelled list price, not a bill.** Rates live in
 `lib/aieds-rates.json`, and a model that is not in that file gets no cost figure
-rather than a guessed one. In AIEDS v2 energy, carbon and tree time are fixed
+rather than a guessed one. In AiEDs v2 energy, carbon and tree time are fixed
 multiples of each other, which is why those three lines sit on top of one
 another on the chart.
 
@@ -282,7 +282,7 @@ Nothing is sent anywhere. There is nowhere to send it: the app has no analytics
 endpoint and opens no connection for one. The file is yours, it is ignored by
 git, and deleting it undoes everything it ever recorded.
 
-Energy in watt hours is not modelled here. AIEDS v2 models energy from AI token
+Energy in watt hours is not modelled here. AiEDs v2 models energy from AI token
 counts, and there is no sourced figure for what this device draws, so the log
 carries the measurements and says the energy number is unavailable rather than
 printing a guess with a unit on it.
