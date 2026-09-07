@@ -29,10 +29,10 @@ async function getJSON(url) {
   return await r.json();
 }
 
-// Pairing token bootstrap: fetched once, same-origin only (server.js sends
-// no Access-Control-Allow-Origin on this route, so no other origin's JS can
-// read the response even though the request reaches the server). Attached
-// to every state-changing request below; without it the server refuses.
+// Pairing token bootstrap: fetched once, same-origin only. No /api/ response
+// sets Access-Control-Allow-Origin, and a request that names another origin is
+// refused outright, so the token cannot leave this page. Attached to every
+// state-changing request below; without it the server refuses.
 let pairingTokenPromise = null;
 function pairingToken() {
   if (!pairingTokenPromise) pairingTokenPromise = fetch("/api/pairing-token").then((r) => r.json()).then((j) => j.token);

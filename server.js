@@ -29,18 +29,36 @@ function redactConfig(c) {
   return rest;
 }
 
-// Any tab on any site can already reach localhost, so every POST/PUT/DELETE
-// under /api/ must prove two things before its handler runs: the request
-// came from the pad's own page (Origin), and it is the pad's own page, not
-// just any page on that origin (the pairing token). Browsers attach an
-// Origin header to every non-GET fetch, same-origin included, so failing
-// closed on a missing Origin does not affect the real UI.
+// Any tab on any site can already reach localhost, so every /api/ request
+// has to come from the pad's own page. One policy, one code path: this is
+// the only place an origin is judged.
+//
+// The one difference between a read and a mutation is what a MISSING Origin
+// header means. Browsers attach Origin to every non-GET fetch, same-origin
+// included, so a mutation can fail closed on a missing header without
+// affecting the real UI. Same-origin GET fetches carry no Origin header at
+// all, so a read can only reject a MISMATCHED one. That gap is closed by
+// the second half of the read policy: no /api/ response carries an
+// Access-Control-Allow-Origin header, so a cross-origin page can reach a
+// GET handler but the browser will not let its JS read the body.
+function originAllowed(req, res, { requireHeader }) {
+  const origin = req.headers.origin;
+  if (origin === ALLOWED_ORIGIN) return true;
+  if (!origin && !requireHeader) return true;
+  res.writeHead(403, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
+  return false;
+}
+
+// A read proves it came from the pad's own page. A mutation proves that and
+// that it is the pad's own page, not just any page on that origin (the
+// pairing token).
+function authorizeRead(req, res) {
+  return originAllowed(req, res, { requireHeader: false });
+}
+
 function authorizeMutation(req, res) {
-  if (req.headers.origin !== ALLOWED_ORIGIN) {
-    res.writeHead(403, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
-    return false;
-  }
+  if (!originAllowed(req, res, { requireHeader: true })) return false;
   const supplied = Buffer.from(String(req.headers["x-pairing-token"] || ""), "utf8");
   const expected = Buffer.from(PAIRING_TOKEN, "utf8");
   if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
@@ -111,7 +129,12 @@ async function sysSnapshot() {
 
 const launcher = require("./lib/launcher");
 const bridge = new MicropadBridge(cfg);
-bridge.start();
+// One process owns the pad's HID handle. RK_MICROPAD_NO_DEVICE brings the HTTP
+// server up without claiming it, so a test can ask the API questions on a
+// machine where the real pad server is already running. It disables the
+// hardware only: every route, and every check in front of every route, behaves
+// exactly as it does in a normal run.
+if (process.env.RK_MICROPAD_NO_DEVICE !== "1") bridge.start();
 
 // SSE clients: the web UI subscribes so it can react to device key presses
 // (talk toggle, action runs) without polling.
@@ -169,27 +192,20 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
 
+  // Every /api/ request is judged before any handler runs. A GET proves its
+  // origin; anything else proves its origin and carries the pairing token.
+  if (p.startsWith("/api/")) {
+    if (req.method === "GET") {
+      if (!authorizeRead(req, res)) return;
+    } else if (!authorizeMutation(req, res)) return;
+  }
+
   // The page's own bootstrap read: the token has to reach the UI somehow
-  // before the UI can send it back. Deliberately NO Access-Control-Allow-
-  // Origin header on this response (unlike every other /api/ route below) -
-  // a fetch from another origin still reaches this handler, but the browser
-  // will not let that page's JS read the body without a matching CORS
-  // header, so the token cannot leave this origin. Same-origin GET fetches
-  // do not carry an Origin header, so this only rejects a MISMATCHED one.
+  // before the UI can send it back.
   if (req.method === "GET" && p === "/api/pairing-token") {
-    const origin = req.headers.origin;
-    if (origin && origin !== ALLOWED_ORIGIN) {
-      res.writeHead(403, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
-      return;
-    }
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ token: PAIRING_TOKEN }));
     return;
-  }
-
-  if (req.method !== "GET" && p.startsWith("/api/")) {
-    if (!authorizeMutation(req, res)) return;
   }
 
   if (req.method === "GET" && p === "/api/events") {
@@ -197,7 +213,6 @@ const server = http.createServer((req, res) => {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
     });
     res.write(": connected\n\n");
     sseClients.add(res);
@@ -206,7 +221,6 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "GET" && p.startsWith("/api/")) {
-    res.setHeader("Access-Control-Allow-Origin", "*");
     if (p === "/api/state") {
       const assigned = bridge.lastAssigned.map((x) => ({
         slot: x.slotCfg.slot,
@@ -230,14 +244,14 @@ const server = http.createServer((req, res) => {
     // Where action commands are searched for, so the settings editor can show
     // it rather than making the user guess.
     if (p === "/api/actions/paths") {
-      res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ resolved: launcher.cmdDir(cfg), searched: launcher.describe(cfg) }));
       return;
     }
     // The effect list the outer-light animation picker renders from, so the UI
     // never hardcodes a set the firmware might not have.
     if (p === "/api/underglow/effects") {
-      res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ effects: require("./lib/pad").underglowEffects }));
       return;
     }
@@ -246,7 +260,7 @@ const server = http.createServer((req, res) => {
       const aieds = require("./lib/aieds");
       Promise.all([herdr.listAgents().catch(() => []), aieds.summary().catch(() => null)])
         .then(([agents, aiedsSummary]) => {
-          res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+          res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ agents, aieds: aiedsSummary }));
         })
         .catch((e) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: e.message })); });
@@ -255,20 +269,20 @@ const server = http.createServer((req, res) => {
     if (p === "/api/aieds/series") {
       const aieds = require("./lib/aieds");
       aieds.series(30)
-        .then((series) => { res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify({ series })); })
+        .then((series) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ series })); })
         .catch((e) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: e.message })); });
       return;
     }
     if (p === "/api/sys") {
       sysSnapshot()
-        .then((s) => { res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify(s)); })
+        .then((s) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(s)); })
         .catch((e) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: e.message })); });
       return;
     }
     // The table scrolls, so send a useful depth rather than a screenful.
     if (p === "/api/sys/procs") {
       readProcesses(25)
-        .then((procs) => { res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify({ procs })); })
+        .then((procs) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ procs })); })
         .catch((e) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: e.message })); });
       return;
     }
@@ -282,7 +296,7 @@ const server = http.createServer((req, res) => {
         const raw = JSON.parse(fs.readFileSync(file, "utf8"));
         info = { exists: true, savedAt: stat.mtime.toISOString(), bytes: (raw.data || "").length };
       } catch (_) { /* no backup yet */ }
-      res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(info));
       return;
     }
@@ -299,8 +313,8 @@ const server = http.createServer((req, res) => {
         const { pid } = JSON.parse(body || "{}");
         if (!Number.isInteger(pid) || pid <= 0) throw new Error("valid pid required");
         execFile("taskkill", ["/PID", String(pid), "/F"], { windowsHide: true, timeout: 10000 }, (err, stdout, stderr) => {
-          if (err) { res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify({ ok: false, error: (stderr || err.message).trim() })); return; }
-          res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+          if (err) { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: (stderr || err.message).trim() })); return; }
+          res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ ok: true, pid }));
         });
       } catch (e) {
@@ -363,7 +377,7 @@ const server = http.createServer((req, res) => {
             });
         }
         const saved = config.save(patch);
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, config: redactConfig(saved) }));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -385,7 +399,7 @@ const server = http.createServer((req, res) => {
       try {
         const { active } = JSON.parse(body || "{}");
         const state = await bridge.setPairing(!!active);
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, pairing: state }));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -409,7 +423,7 @@ const server = http.createServer((req, res) => {
       let force = false;
       try { force = !!JSON.parse(body || "{}").force; } catch (_) {}
       if (fs.existsSync(file) && !force) {
-        res.writeHead(409, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(409, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: "a backup already exists; refusing to overwrite the original" }));
         return;
       }
@@ -421,7 +435,7 @@ const server = http.createServer((req, res) => {
       try {
         const raw = await bridge.dev.call("fs.read", { file: "keymap.json" });
         fs.writeFileSync(file, JSON.stringify(raw, null, 2), "utf8");
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, bytes: (raw.data || "").length }));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -437,7 +451,7 @@ const server = http.createServer((req, res) => {
     req.on("end", async () => {
       const file = require("path").join(__dirname, "keymap-backup.json");
       if (!fs.existsSync(file)) {
-        res.writeHead(404, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: "no keymap-backup.json to restore from" }));
         return;
       }
@@ -453,7 +467,7 @@ const server = http.createServer((req, res) => {
         // The firmware returns ok for anything, so read it back and compare.
         const after = await bridge.dev.call("fs.read", { file: "keymap.json" });
         const identical = after.data === raw.data;
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
           ok: identical,
           verified: identical,
@@ -483,7 +497,7 @@ const server = http.createServer((req, res) => {
       try {
         const { dir } = JSON.parse(body || "{}");
         await bridge.cycleModel(Number(dir) < 0 ? -1 : 1);
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, note }));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -514,7 +528,7 @@ const server = http.createServer((req, res) => {
           return;
         }
         await bridge.joyDirection(index);
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, note }));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -534,7 +548,7 @@ const server = http.createServer((req, res) => {
         const { key } = JSON.parse(body || "{}");
         const action = cfg.actions[key];
         const r = action ? runAction(action) : { ok: false, error: `unknown key ${key}` };
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(r));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -553,7 +567,7 @@ const server = http.createServer((req, res) => {
         const { command } = JSON.parse(body || "{}");
         if (!command) throw new Error("command required");
         bridge.sendToFocused(command)
-          .then((r) => { res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify(r)); })
+          .then((r) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(r)); })
           .catch((err) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: err.message })); });
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -573,7 +587,7 @@ const server = http.createServer((req, res) => {
         if (!pane || !cwd) throw new Error("pane and cwd required");
         const herdr = require("./lib/herdr");
         herdr.cd(pane, cwd)
-          .then(() => { res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify({ ok: true })); })
+          .then(() => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: true })); })
           .catch((err) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: err.message })); });
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -593,7 +607,7 @@ const server = http.createServer((req, res) => {
       try {
         const { active } = JSON.parse(body || "{}");
         const state = bridge.setTalk(!!active);
-        res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, talkActive: state }));
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -611,7 +625,7 @@ const server = http.createServer((req, res) => {
         const { keyID, color, effect } = JSON.parse(body || "{}");
         if (typeof keyID !== "number") throw new Error("keyID required");
         bridge.setKey(keyID, color || 0xff4124, effect || 1)
-          .then(() => { res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(JSON.stringify({ ok: true })); })
+          .then(() => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: true })); })
           .catch((err) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: err.message })); });
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
@@ -621,7 +635,6 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
   serveStatic(req, res, p === "/" ? "/index.html" : p);
 });
 
