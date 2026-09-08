@@ -203,17 +203,20 @@ talk to.
 
 What the app does guard is itself. Any page in any browser tab can send a
 request to `localhost`, and this app can end processes and run commands, so
-every request that changes something has to prove two things: it came from the
-app's own page, and it carries the pairing token that was minted into your
-`config.json` on first run. Without both, the answer is a refusal, not an
+every request has to come from the app's own page, and every request that
+changes something also has to carry the pairing token that was minted into
+your `config.json` on first run. Without both, the answer is a refusal, not an
 action. The token is a secret. It is never printed, never logged and never
 returned to a page from another origin.
 
-One caveat, stated plainly: the read-only routes are open to any origin. A page
-you visit cannot press a key or kill a process, but it can read what the status
-panel reads, which includes your machine's name and a list of running process
-names. If that matters to you, do not run the server while browsing untrusted
-sites.
+That applies to reading as well as to changing. A page on another site asking
+this server for your machine's name or your process list is refused, and no
+response carries a header that would let another origin's code read the body
+even if it got one. There is one gap left, and it is worth knowing about: a
+program running on your machine is not a browser, so it is not bound by any of
+this. The pairing token is what stands in its way on anything that changes
+something, and a local program that can read your `config.json` has already
+read the token.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

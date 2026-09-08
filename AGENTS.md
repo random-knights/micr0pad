@@ -92,6 +92,13 @@ The pad is not a toy target: three of the scripts write to device flash.
 
 ## Auth
 
+One policy, one code path. `originAllowed()` in `server.js` is the only place
+an origin is judged, and every `/api/` request passes it before any handler
+runs: a read proves its origin, anything else proves its origin and carries
+the pairing token. No response sets `Access-Control-Allow-Origin`. Do not add
+one, and do not add a route that answers ahead of the gate.
+`test/origin-policy.test.js` fails on either.
+
 The pairing token plus the origin allowlist in `server.js` is the ONLY auth
 this tool has, and that is deliberate: it is a local tool, and accounts,
 OAuth or a cloud identity would give it a login to protect and a service to
