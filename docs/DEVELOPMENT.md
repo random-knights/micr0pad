@@ -8,10 +8,12 @@ real Codex Micro (firmware v0.4.1) rather than taken from documentation.
 ```
 server.js            HTTP + JSON API + SSE, serves public/
 lib/wldevice.js      raw-HID JSON-RPC transport (vendor interface FF00/01)
-lib/bridge.js        poll loop: read agents -> assign slots -> paint the pad
+lib/bridge.js        poll loop: poll providers -> assign slots -> paint the pad
+lib/providers/       one adapter per status source, one interface (index.js)
+lib/providers/herdr.js   Herdr rows -> normalized agents
 lib/mapper.js        agent -> slot assignment, and the colour/effect for each
 lib/pad.js           device geometry, status colours, underglow + effect table
-lib/herdr.js         thin wrapper over the herdr CLI
+lib/herdr.js         thin wrapper over the herdr CLI (list, focus, prompt, keys)
 lib/aieds.js         reads the local AiEDs log into totals and a 30-day series
 lib/aieds-cost.js    the one cost function (list price, never a bill)
 lib/aieds-rates.json owner-editable per-token prices

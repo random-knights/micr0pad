@@ -5,6 +5,11 @@
   "analytics": {
     "enabled": false
   },
+  "providers": {
+    "herdr": {
+      "enabled": true
+    }
+  },
   "slots": [
     {
       "slot": 0,

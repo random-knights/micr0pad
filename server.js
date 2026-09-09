@@ -128,13 +128,14 @@ async function sysSnapshot() {
 }
 
 const launcher = require("./lib/launcher");
-const bridge = new MicropadBridge(cfg);
-// One process owns the pad's HID handle. RK_MICROPAD_NO_DEVICE brings the HTTP
+// One process owns the pad's HID handle. RK_MICROPAD_NO_DEVICE brings the
 // server up without claiming it, so a test can ask the API questions on a
-// machine where the real pad server is already running. It disables the
-// hardware only: every route, and every check in front of every route, behaves
-// exactly as it does in a normal run.
-if (process.env.RK_MICROPAD_NO_DEVICE !== "1") bridge.start();
+// machine where the real pad server is already running, and a machine with
+// no pad can still watch its agents on the page. It disables the hardware
+// only: the provider poll loop, every route, and every check in front of
+// every route behave exactly as they do in a normal run.
+const bridge = new MicropadBridge(cfg, { noDevice: process.env.RK_MICROPAD_NO_DEVICE === "1" });
+bridge.start();
 
 // SSE clients: the web UI subscribes so it can react to device key presses
 // (talk toggle, action runs) without polling.
@@ -226,7 +227,7 @@ const server = http.createServer((req, res) => {
         slot: x.slotCfg.slot,
         name: x.slotCfg.name,
         keyID: config_agentKeyIDs()[x.slotCfg.slot],
-        agent: x.agent ? { agent: x.agent.agent, status: require("./lib/herdr").statusOf(x.agent), focused: x.agent.focused, cwd: x.agent.cwd, paneID: x.agent.paneID } : null,
+        agent: x.agent ? { providerId: x.agent.providerId, agent: x.agent.agent, status: require("./lib/mapper").statusOf(x.agent), focused: x.agent.focused, cwd: x.agent.cwd, paneID: x.agent.paneID } : null,
       }));
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
@@ -255,13 +256,19 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify({ effects: require("./lib/pad").underglowEffects }));
       return;
     }
+    // The agents the bridge saw on its last poll, from every enabled
+    // provider, plus each adapter's health. The bridge's own snapshot is
+    // used rather than a fresh CLI call, so the page and the pad agree.
     if (p === "/api/debug") {
-      const herdr = require("./lib/herdr");
       const aieds = require("./lib/aieds");
-      Promise.all([herdr.listAgents().catch(() => []), aieds.summary().catch(() => null)])
-        .then(([agents, aiedsSummary]) => {
+      aieds.summary().catch(() => null)
+        .then((aiedsSummary) => {
+          const agents = bridge.lastAgents.map((a) => ({
+            providerId: a.providerId, agent: a.agent, status: a.status, focused: a.focused,
+            cwd: a.cwd, title: a.title, paneID: a.paneID,
+          }));
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ agents, aieds: aiedsSummary }));
+          res.end(JSON.stringify({ agents, providers: bridge.providerStatus(), aieds: aiedsSummary }));
         })
         .catch((e) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: e.message })); });
       return;
