@@ -692,28 +692,19 @@ function renderSlotEdit() {
     row.appendChild(test);
     box.appendChild(row);
   }
-  const saveBtn = document.getElementById("saveSlots");
-  saveBtn.onclick = async () => {
-    const slots = [];
-    for (const s of state.config.slots) {
-      const name = box.querySelector(`input[data-slot="${s.slot}"][data-field="name"]`).value;
-      const color = box.querySelector(`input[data-slot="${s.slot}"][data-field="color"]`).value;
-      slots.push({ ...s, name, color });
-    }
-    const r = await apiPost("/api/config", { slots });
-    const j = await r.json();
-    const msg = document.getElementById("saveMsg");
-    if (j.ok) {
-      msg.textContent = "saved";
-      state.config = j.config;
-      lastConfigJson = JSON.stringify(state.config);
-      renderPad(); renderSlots(); renderLightTest(); renderActions();
-      poll(); // re-pull /api/state so the bridge snapshot agrees too
-    } else {
-      msg.textContent = "error: " + (j.error || "unknown");
-    }
-    setTimeout(() => { msg.textContent = ""; }, 2500);
-  };
+}
+
+// What the slot editor currently shows, in the shape POST /api/config takes.
+// The matching fields ride along untouched (see test/public-safety.test.js).
+function readSlotEdits() {
+  const box = document.getElementById("slotEdit");
+  const slots = [];
+  for (const s of state.config.slots) {
+    const name = box.querySelector(`input[data-slot="${s.slot}"][data-field="name"]`).value;
+    const color = box.querySelector(`input[data-slot="${s.slot}"][data-field="color"]`).value;
+    slots.push({ ...s, name, color });
+  }
+  return slots;
 }
 
 // Underglow (outer light) editor: mode (auto/solid), color, effect (solid/gradient).
@@ -764,7 +755,9 @@ function renderUnderglow() {
   syncColorState();
   renderUnderglowAnimation();
 
-  const saveBtn = document.getElementById("saveUnderglow");
+  // One Save for the section: slot names and colours plus the outer light, in
+  // a single /api/config request, so a half-saved state cannot happen.
+  const saveBtn = document.getElementById("saveLights");
   saveBtn.onclick = async () => {
     // auto keeps the per-state effect; solid and gradient pin effect 1 or 5.
     const picked = box.querySelector('[data-field="mode"]').value;
@@ -776,12 +769,15 @@ function renderUnderglow() {
       // "state" or a firmware effect id; the server validates the range.
       animation: animEl ? (animEl.value === "state" ? "state" : Number(animEl.value)) : "state",
     };
-    const r = await apiPost("/api/config", { underglow });
+    const r = await apiPost("/api/config", { slots: readSlotEdits(), underglow });
     const j = await r.json();
-    const msg = document.getElementById("ugMsg");
+    const msg = document.getElementById("saveMsg");
     if (j.ok) {
       msg.textContent = "saved";
       state.config = j.config;
+      lastConfigJson = JSON.stringify(state.config);
+      renderPad(); renderSlots(); renderLightTest(); renderActions();
+      poll(); // re-pull /api/state so the bridge snapshot agrees too
     } else {
       msg.textContent = "error: " + (j.error || "unknown");
     }

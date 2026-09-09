@@ -142,12 +142,10 @@
           <div class="panel-section">
             <h3 class="subhead">Slot Names &amp; Colors <span class="hint">(config.json)</span></h3>
             <div id="slotEdit" class="slot-edit"></div>
-            <div class="section-actions">
-              <button id="saveSlots" class="primary">Save</button>
-              <span id="saveMsg" class="save-msg"></span>
-            </div>
           </div>
-          <div class="panel-section hug">
+          <!-- One Save for the whole light section: slot names and colours,
+               outer light config and animation go up in a single request. -->
+          <div class="panel-section hug no-top-rule">
             <h3 class="subhead">Outer Light Config <span class="hint">(underglow)</span></h3>
             <div id="underglowEdit" class="slot-edit"></div>
             <div id="animSection" hidden>
@@ -155,8 +153,8 @@
               <div id="underglowAnim" class="anim-grid"></div>
             </div>
             <div class="section-actions">
-              <button id="saveUnderglow" class="primary">Save</button>
-              <span id="ugMsg" class="save-msg"></span>
+              <button id="saveLights" class="primary" title="Save slot names, colours and the outer light">Save</button>
+              <span id="saveMsg" class="save-msg"></span>
             </div>
           </div>
 
