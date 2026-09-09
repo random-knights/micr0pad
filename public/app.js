@@ -692,28 +692,19 @@ function renderSlotEdit() {
     row.appendChild(test);
     box.appendChild(row);
   }
-  const saveBtn = document.getElementById("saveSlots");
-  saveBtn.onclick = async () => {
-    const slots = [];
-    for (const s of state.config.slots) {
-      const name = box.querySelector(`input[data-slot="${s.slot}"][data-field="name"]`).value;
-      const color = box.querySelector(`input[data-slot="${s.slot}"][data-field="color"]`).value;
-      slots.push({ ...s, name, color });
-    }
-    const r = await apiPost("/api/config", { slots });
-    const j = await r.json();
-    const msg = document.getElementById("saveMsg");
-    if (j.ok) {
-      msg.textContent = "saved";
-      state.config = j.config;
-      lastConfigJson = JSON.stringify(state.config);
-      renderPad(); renderSlots(); renderLightTest(); renderActions();
-      poll(); // re-pull /api/state so the bridge snapshot agrees too
-    } else {
-      msg.textContent = "error: " + (j.error || "unknown");
-    }
-    setTimeout(() => { msg.textContent = ""; }, 2500);
-  };
+}
+
+// What the slot editor currently shows, in the shape POST /api/config takes.
+// The matching fields ride along untouched (see test/public-safety.test.js).
+function readSlotEdits() {
+  const box = document.getElementById("slotEdit");
+  const slots = [];
+  for (const s of state.config.slots) {
+    const name = box.querySelector(`input[data-slot="${s.slot}"][data-field="name"]`).value;
+    const color = box.querySelector(`input[data-slot="${s.slot}"][data-field="color"]`).value;
+    slots.push({ ...s, name, color });
+  }
+  return slots;
 }
 
 // Underglow (outer light) editor: mode (auto/solid), color, effect (solid/gradient).
@@ -764,7 +755,9 @@ function renderUnderglow() {
   syncColorState();
   renderUnderglowAnimation();
 
-  const saveBtn = document.getElementById("saveUnderglow");
+  // One Save for the section: slot names and colours plus the outer light, in
+  // a single /api/config request, so a half-saved state cannot happen.
+  const saveBtn = document.getElementById("saveLights");
   saveBtn.onclick = async () => {
     // auto keeps the per-state effect; solid and gradient pin effect 1 or 5.
     const picked = box.querySelector('[data-field="mode"]').value;
@@ -776,12 +769,15 @@ function renderUnderglow() {
       // "state" or a firmware effect id; the server validates the range.
       animation: animEl ? (animEl.value === "state" ? "state" : Number(animEl.value)) : "state",
     };
-    const r = await apiPost("/api/config", { underglow });
+    const r = await apiPost("/api/config", { slots: readSlotEdits(), underglow });
     const j = await r.json();
-    const msg = document.getElementById("ugMsg");
+    const msg = document.getElementById("saveMsg");
     if (j.ok) {
       msg.textContent = "saved";
       state.config = j.config;
+      lastConfigJson = JSON.stringify(state.config);
+      renderPad(); renderSlots(); renderLightTest(); renderActions();
+      poll(); // re-pull /api/state so the bridge snapshot agrees too
     } else {
       msg.textContent = "error: " + (j.error || "unknown");
     }
@@ -1012,16 +1008,21 @@ function drawAiedsChart() {
   const w = 320, h = 100, padL = 3, padR = 3, padT = 8, padB = 6;
   const n = aiedsSeries.length;
   if (n < 2) {
-    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
-    svg.innerHTML =
-      '<line x1="0" y1="' + (h - padB) + '" x2="' + w + '" y2="' + (h - padB) +
-      '" stroke="rgba(255,124,72,0.28)" stroke-width="1" stroke-dasharray="4 3" ' +
-      'vector-effect="non-scaling-stroke"/>';
+    // Fewer than two days in the log: no line to draw. Say so in words and
+    // hide the chips and the box rather than showing an empty frame.
+    const chips = document.getElementById("aiedsChips");
+    if (chips) chips.hidden = true;
+    svg.hidden = true;
     const range0 = document.getElementById("aiedsRange");
-    if (range0) range0.textContent = "no activity yet";
+    if (range0) range0.textContent = n === 0
+      ? "no AiEDs log found yet: the trend fills in as sessions end (AIEDS_LOG_PATH, or aieds-local.jsonl beside the app)"
+      : "one day of activity so far; the trend needs two";
     row.hidden = false;
     return;
   }
+  svg.hidden = false;
+  const chipsEl = document.getElementById("aiedsChips");
+  if (chipsEl) chipsEl.hidden = false;
   const x = (i) => padL + (i * (w - padL - padR)) / (n - 1);
   const norm = (v, max) => {
     if (max <= 0) return 0;
@@ -1075,6 +1076,57 @@ function fmtDec(n, digits) {
   return (+n || 0).toLocaleString("en-US", { minimumFractionDigits: digits ?? 1, maximumFractionDigits: digits ?? 1 });
 }
 
+// End a process through the EXISTING kill route. The button is disabled up
+// front for anything not on watch.killable, and the server refuses it again.
+function endButton(p, rule) {
+  const ok = !state.killable || state.killable.includes(String(p.name).toLowerCase());
+  const why = ok ? "End task" : `${p.name} is not on watch.killable in config.json`;
+  return `<button class="kill-btn" data-pid="${p.pid}" data-name="${esc(p.name)}" data-rule="${rule || ""}" title="${esc(why)}"${ok ? "" : " disabled"}>end</button>`;
+}
+function wireEndButtons(root) {
+  root.querySelectorAll(".kill-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      const { pid, name, rule } = btn.dataset;
+      if (!confirm(`End task ${name} (PID ${pid})?`)) return;
+      const r = await apiPost("/api/sys/kill", { pid: Number(pid), rule: rule || undefined });
+      const j = await r.json();
+      btn.textContent = j.ok ? "killed" : "err";
+      if (!j.ok) btn.title = j.error || "refused";
+      setTimeout(() => { btn.textContent = "end"; }, 1500);
+    };
+  });
+}
+
+// Resource watch: badge + banner in the System panel. Polled with the
+// monitor and refreshed at once when a watch notice arrives over SSE.
+async function renderWatch() {
+  const banner = document.getElementById("watchBanner");
+  const badge = document.getElementById("watchBadge");
+  if (!banner || !badge) return;
+  let w;
+  try { w = await getJSON("/api/watch"); } catch (_) { return; }
+  state.killable = w.killable || null;
+  const alerts = w.alerts || [];
+  badge.hidden = alerts.length === 0;
+  badge.textContent = String(alerts.length);
+  banner.hidden = alerts.length === 0;
+  if (!alerts.length) { banner.innerHTML = ""; return; }
+  banner.innerHTML = alerts.map((a) =>
+    `<div class="watch-alert"><span class="w-rule">${esc(a.label)}</span>` +
+    `<span class="w-proc">${esc(a.name)}${a.pid ? " " + a.pid : ""}</span>` +
+    `<span class="w-detail">${esc(a.detail)}</span>` +
+    (a.pid ? endButton(a, a.rule) : "") +
+    `<button class="kill-btn snooze-btn" data-rule="${a.rule}" title="silence this rule for 30 minutes">snooze 30 min</button></div>`
+  ).join("");
+  wireEndButtons(banner);
+  banner.querySelectorAll(".snooze-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      await apiPost("/api/watch/snooze", { rule: btn.dataset.rule });
+      renderWatch();
+    };
+  });
+}
+
 // PC resource monitor: CPU / RAM bars, process count, uptime. Polls /api/sys.
 async function renderSysMonitor() {
   const cpuBar = document.getElementById("cpuBar");
@@ -1104,23 +1156,15 @@ async function renderSysMonitor() {
     const pr = await (await fetch("/api/sys/procs")).json();
     const tbody = document.querySelector("#procTable tbody");
     if (tbody) {
+      if (Array.isArray(pr.killable)) state.killable = pr.killable;
       tbody.innerHTML = (pr.procs || []).map((p) =>
-        `<tr><td>${p.pid}</td><td class="cwd-cell">${p.name}</td><td>${fmtDec(p.memKb / 1024, 0)} MB</td>` +
-        `<td><button class="kill-btn" data-pid="${p.pid}" data-name="${p.name}" title="End task">end</button></td></tr>`
+        `<tr><td>${p.pid}</td><td class="cwd-cell">${esc(p.name)}</td><td>${fmtDec(p.memKb / 1024, 0)} MB</td>` +
+        `<td>${endButton(p)}</td></tr>`
       ).join("");
-      tbody.querySelectorAll(".kill-btn").forEach((btn) => {
-        btn.onclick = async () => {
-          const pid = btn.dataset.pid;
-          const name = btn.dataset.name;
-          if (!confirm(`End task ${name} (PID ${pid})?`)) return;
-          const r = await apiPost("/api/sys/kill", { pid: Number(pid) });
-          const j = await r.json();
-          btn.textContent = j.ok ? "killed" : "err";
-          setTimeout(() => { btn.textContent = "end"; }, 1500);
-        };
-      });
+      wireEndButtons(tbody);
     }
   } catch (_) { /* ignore */ }
+  renderWatch();
 }
 renderSysMonitor();
 setInterval(renderSysMonitor, 3000);
@@ -1176,6 +1220,34 @@ function wireNotes() {
 }
 wireNotes();
 
+// Folding sections (the two AiEDs blocks). Closed state is remembered per
+// browser under one localStorage key per section; a browser that blocks
+// storage simply forgets on reload.
+function wireFolds() {
+  document.querySelectorAll(".fold-head[data-fold]").forEach((head) => {
+    const name = head.dataset.fold;
+    const body = document.querySelector(`[data-fold-body="${name}"]`);
+    if (!body) return;
+    const key = "0p.fold." + name;
+    const apply = (closed) => {
+      head.classList.toggle("closed", closed);
+      body.classList.toggle("closed", closed);
+      head.setAttribute("aria-expanded", closed ? "false" : "true");
+    };
+    let closed = head.dataset.foldDefault === "closed";
+    try { const v = localStorage.getItem(key); if (v !== null) closed = v === "1"; } catch (_) {}
+    apply(closed);
+    const flip = () => {
+      closed = !head.classList.contains("closed");
+      apply(closed);
+      try { localStorage.setItem(key, closed ? "1" : "0"); } catch (_) {}
+    };
+    head.onclick = flip;
+    head.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } };
+  });
+}
+wireFolds();
+
 async function poll() {
   try {
     const data = await getJSON("/api/state");
@@ -1223,6 +1295,7 @@ function connectEvents() {
       flashKnob(msg.index);
       return;
     }
+    if (msg.type === "notice" && msg.watch) { renderWatch(); return; }
     if (msg.type === "actkey" && (msg.index === 10 || msg.index === 11) && msg.pressed) {
       const now = Date.now();
       if (now - lastTalkKeyAt < 250) return;

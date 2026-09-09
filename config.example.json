@@ -5,6 +5,74 @@
   "analytics": {
     "enabled": false
   },
+  "watch": {
+    "enabled": true,
+    "sampleMs": 3000,
+    "historyMs": 600000,
+    "snoozeMs": 1800000,
+    "killable": [
+      "chrome.exe",
+      "dart.exe",
+      "dartvm.exe",
+      "java.exe",
+      "msedgewebview2.exe"
+    ],
+    "autoKill": false,
+    "rules": {
+      "cpuSustained": {
+        "enabled": true,
+        "cpuPct": 85,
+        "forSec": 90
+      },
+      "memSustained": {
+        "enabled": true,
+        "memPct": 90,
+        "forSec": 60
+      },
+      "processHog": {
+        "enabled": true,
+        "workingSetMb": 2048,
+        "cpuPct": 50,
+        "forSec": 120
+      },
+      "hungChrome": {
+        "enabled": true,
+        "name": "chrome.exe",
+        "cpuPct": 0,
+        "workingSetMb": 800,
+        "forSec": 180
+      },
+      "orphanDev": {
+        "enabled": true,
+        "names": [
+          "dart.exe",
+          "dartvm.exe",
+          "java.exe"
+        ],
+        "parents": [
+          "code.exe",
+          "code - insiders.exe",
+          "cursor.exe",
+          "windsurf.exe",
+          "idea64.exe",
+          "studio64.exe",
+          "devenv.exe",
+          "dart.exe",
+          "dartvm.exe",
+          "flutter.exe",
+          "java.exe",
+          "node.exe",
+          "cmd.exe",
+          "powershell.exe",
+          "pwsh.exe",
+          "bash.exe",
+          "windowsterminal.exe",
+          "explorer.exe"
+        ],
+        "forSec": 300
+      }
+    }
+  },
   "slots": [
     {
       "slot": 0,

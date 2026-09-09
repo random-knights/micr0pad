@@ -142,12 +142,10 @@
           <div class="panel-section">
             <h3 class="subhead">Slot Names &amp; Colors <span class="hint">(config.json)</span></h3>
             <div id="slotEdit" class="slot-edit"></div>
-            <div class="section-actions">
-              <button id="saveSlots" class="primary">Save</button>
-              <span id="saveMsg" class="save-msg"></span>
-            </div>
           </div>
-          <div class="panel-section hug">
+          <!-- One Save for the whole light section: slot names and colours,
+               outer light config and animation go up in a single request. -->
+          <div class="panel-section hug no-top-rule">
             <h3 class="subhead">Outer Light Config <span class="hint">(underglow)</span></h3>
             <div id="underglowEdit" class="slot-edit"></div>
             <div id="animSection" hidden>
@@ -155,8 +153,8 @@
               <div id="underglowAnim" class="anim-grid"></div>
             </div>
             <div class="section-actions">
-              <button id="saveUnderglow" class="primary">Save</button>
-              <span id="ugMsg" class="save-msg"></span>
+              <button id="saveLights" class="primary" title="Save slot names, colours and the outer light">Save</button>
+              <span id="saveMsg" class="save-msg"></span>
             </div>
           </div>
 
@@ -175,7 +173,8 @@
       <!-- COLUMN 3: System + Action Keys -->
       <div class="col">
         <div class="panel grow" id="sysPanel">
-          <h2>System <span class="hint">PC resource monitor &amp; tasks</span></h2>
+          <h2>System <span class="hint">PC resource monitor &amp; tasks</span> <span id="watchBadge" class="watch-badge" hidden>0</span></h2>
+          <div id="watchBanner" class="watch-banner" hidden></div>
           <div class="sys-metrics">
             <div class="sys-bar"><span class="sys-lbl">CPU</span><div class="sys-track"><div id="cpuBar" class="sys-fill"></div></div><span id="cpuPct" class="sys-val">-</span></div>
             <div class="sys-bar"><span class="sys-lbl">RAM</span><div class="sys-track"><div id="memBar" class="sys-fill"></div></div><span id="memPct" class="sys-val">-</span></div>
@@ -185,17 +184,22 @@
               <span id="upTime" class="sys-muted">-</span>
             </div>
           </div>
-          <h3 class="subhead">Top Processes <span class="hint">(by memory)</span></h3>
+          <h3 class="subhead">Top Processes <span class="hint">(by memory; end works on the watch.killable list only)</span></h3>
           <div class="proc-scroll">
             <table id="procTable" class="slot-table">
               <thead><tr><th>PID</th><th>Name</th><th>Mem</th><th></th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
-          <h3 class="subhead">AiEDs v2.0.0 Estimates</h3>
-          <div class="aieds-mini">
+          <div class="sys-line watch-foot">watch: alerts on sustained CPU, RAM, a process hog, a hung Chrome renderer or an orphaned dart/java. Alert only. Auto-kill: coming later. Thresholds live in config.json under "watch".</div>
+          <!-- Both AiEDs blocks fold. Click the heading; the choice is kept per
+               browser in localStorage so the panel stays the way you left it. -->
+          <h3 class="subhead fold-head" data-fold="aieds" data-fold-default="closed" role="button" tabindex="0" aria-expanded="false" title="show or hide the per-model table">AiEDs v2.0.0 Estimates</h3>
+          <div class="aieds-mini fold-body" data-fold-body="aieds">
             <div id="debugAieds" class="debug-aieds aieds-scroll"></div>
-            <h3 class="subhead trend-head">30-day Trend</h3>
+          </div>
+          <h3 class="subhead trend-head fold-head" data-fold="trend" role="button" tabindex="0" aria-expanded="true" title="show or hide the 30-day trend">30-day Trend</h3>
+          <div class="aieds-mini fold-body" data-fold-body="trend">
             <div id="aiedsStats" class="aieds-totals" hidden></div>
             <div id="aiedsChartRow" class="aieds-chart-row" hidden>
               <div class="aieds-chart-wrap">
@@ -204,8 +208,8 @@
                 <div id="aiedsRange" class="aieds-range"></div>
               </div>
             </div>
-            <p class="aieds-fineprint" title="AiEDs v2.0.0 - modeled energy and carbon, not measured. Cost is modeled at published list prices, not billed spend.">read more @ <a href="https://randomknights.xyz/aieds" target="_blank" rel="noopener">randomknights.xyz/aieds</a></p>
           </div>
+          <p class="aieds-fineprint" title="AiEDs v2.0.0 - modeled energy and carbon, not measured. Cost is modeled at published list prices, not billed spend.">read more @ <a href="https://randomknights.xyz/aieds" target="_blank" rel="noopener">randomknights.xyz/aieds</a></p>
 
         </div>
 
