@@ -782,6 +782,21 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
   cursor: pointer;
 }
 .kill-btn:hover { background: #ff2d2d; color: #fff; border-color: #ff2d2d; }
+.kill-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.kill-btn:disabled:hover { background: transparent; color: var(--muted); border-color: var(--line); }
+
+/* Resource watch: a badge in the System header while anything is alerting,
+   and a banner above the meters naming the rule and the process. */
+.watch-badge { margin-left: auto; background: #ff2d2d; color: #fff; border-radius: 10px; padding: 0 8px; font-size: 11px; line-height: 18px; }
+#sysPanel > h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.watch-banner { flex: none; margin: 0 0 8px; border: 1px solid #ff2d2d; border-radius: 8px; background: rgba(255, 45, 45, 0.1); padding: 6px 8px; font-size: 11px; }
+.watch-alert { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 3px 0; }
+.watch-alert + .watch-alert { border-top: 1px solid rgba(255, 45, 45, 0.25); }
+.watch-alert .w-rule { color: #ff6b6b; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.04em; }
+.watch-alert .w-proc { color: var(--ink); font-family: "IBM Plex Mono", monospace; }
+.watch-alert .w-detail { color: var(--meta); flex: 1 1 auto; min-width: 0; }
+.watch-alert .kill-btn { margin-left: auto; }
+.watch-foot { flex: none; margin-top: 6px; font-size: 10px; }
 
 /* Provider install commands: 3-col grid, links column centered with even
    space on both sides so each provider reads as one clean line. */

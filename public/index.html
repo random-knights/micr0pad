@@ -175,7 +175,8 @@
       <!-- COLUMN 3: System + Action Keys -->
       <div class="col">
         <div class="panel grow" id="sysPanel">
-          <h2>System <span class="hint">PC resource monitor &amp; tasks</span></h2>
+          <h2>System <span class="hint">PC resource monitor &amp; tasks</span> <span id="watchBadge" class="watch-badge" hidden>0</span></h2>
+          <div id="watchBanner" class="watch-banner" hidden></div>
           <div class="sys-metrics">
             <div class="sys-bar"><span class="sys-lbl">CPU</span><div class="sys-track"><div id="cpuBar" class="sys-fill"></div></div><span id="cpuPct" class="sys-val">-</span></div>
             <div class="sys-bar"><span class="sys-lbl">RAM</span><div class="sys-track"><div id="memBar" class="sys-fill"></div></div><span id="memPct" class="sys-val">-</span></div>
@@ -185,13 +186,14 @@
               <span id="upTime" class="sys-muted">-</span>
             </div>
           </div>
-          <h3 class="subhead">Top Processes <span class="hint">(by memory)</span></h3>
+          <h3 class="subhead">Top Processes <span class="hint">(by memory; end works on the watch.killable list only)</span></h3>
           <div class="proc-scroll">
             <table id="procTable" class="slot-table">
               <thead><tr><th>PID</th><th>Name</th><th>Mem</th><th></th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
+          <div class="sys-line watch-foot">watch: alerts on sustained CPU, RAM, a process hog, a hung Chrome renderer or an orphaned dart/java. Alert only. Auto-kill: coming later. Thresholds live in config.json under "watch".</div>
           <h3 class="subhead">AiEDs v2.0.0 Estimates</h3>
           <div class="aieds-mini">
             <div id="debugAieds" class="debug-aieds aieds-scroll"></div>

@@ -5,7 +5,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { execFile } = require("child_process");
+const { execFile, spawn } = require("child_process");
 const config = require("./lib/config");
 const { MicropadBridge } = require("./lib/bridge");
 
@@ -92,39 +92,103 @@ function readCpu() {
   return Math.round((1 - idleDelta / totalDelta) * 1000) / 10;
 }
 
-// Read the top processes by memory (Windows tasklist CSV).
-function readProcesses(limit) {
-  return new Promise((resolve) => {
-    execFile("tasklist", ["/FO", "CSV", "/NH"], { windowsHide: true, timeout: 10000 }, (err, stdout) => {
-      if (err) return resolve([]);
-      const rows = [];
-      for (const line of stdout.split("\n")) {
-        // tasklist CSV: "Name","PID","Session Name","Session#","Mem Usage"
-        const m = /^"([^"]*)","(\d+)","([^"]*)","(\d+)","([^"]*)"\s*$/.exec(line.trim());
-        if (!m) continue;
-        const memKb = parseInt(m[5].replace(/[, ]/g, ""), 10);
-        rows.push({ name: m[1], pid: parseInt(m[2], 10), session: m[3], memKb: memKb || 0 });
-      }
-      rows.sort((a, b) => b.memKb - a.memKb);
-      resolve(limit > 0 ? rows.slice(0, limit) : rows);
-    });
-  });
-}
-
-// One line of system metrics (CPU, RAM, disk, process count).
+// One line of system metrics (CPU, RAM, disk, process count). The process
+// count comes from the watcher's last sample, so this route spawns nothing.
 async function sysSnapshot() {
   const totalMem = os.totalmem(), freeMem = os.freemem();
   const usedMem = totalMem - freeMem;
-  const processes = await readProcesses(0);
   return {
     cpuPct: readCpu(),
     memUsedMb: Math.round(usedMem / 1048576),
     memTotalMb: Math.round(totalMem / 1048576),
     memPct: Math.round((usedMem / totalMem) * 100),
-    processes: processes.length,
+    processes: watch.procs.size,
     hostname: HOSTNAME,
     uptimeSec: Math.round(os.uptime()),
   };
+}
+
+// RESOURCE WATCH
+// ONE process sampler feeds both the Top Processes table and the watcher
+// rules (lib/watch.js). It is a single long-lived PowerShell child rather
+// than a spawn per tick: a fresh powershell costs 400 to 650 ms of wall time
+// per call on the laptop this was built on, warm Get-Process costs 80 ms.
+// The child polls the server pid and exits by itself when it is gone, so a
+// force-killed server leaves no loop behind. Get-Process gives working set
+// and cumulative CPU time; Win32_Process, every 10th tick, gives the parent
+// pid and the exact image name (the orphanDev rule needs the first, the
+// kill allowlist the second). Line format: see parseSample in lib/watch.js.
+const watchLib = require("./lib/watch");
+const watch = new watchLib.Watch(cfg.watch);
+const WATCH_LOG = path.join(__dirname, "watch.log");
+const samplerState = { child: null, prev: {}, lastLineAt: 0, restarts: 0 };
+const SAMPLER_PS = [
+  `$pp=${process.pid}; $iv=${watch.cfg.sampleMs}; $k=0; $meta=@{}`,
+  "while ($true) {",
+  "  if (-not (Get-Process -Id $pp -ErrorAction SilentlyContinue)) { exit }",
+  "  if ($k % 10 -eq 0) { $m=@{}; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,Name | ForEach-Object { $m[[int]$_.ProcessId] = \"$($_.ParentProcessId)|$($_.Name)\" }; $meta=$m }",
+  "  $k++",
+  "  $rows = foreach ($p in Get-Process) { $c=-1; try { $c=[long]$p.TotalProcessorTime.TotalMilliseconds } catch {}; $x=$meta[[int]$p.Id]; if (-not $x) { $x=\"0|$($p.ProcessName).exe\" }; \"$($p.Id)|$($p.WorkingSet64)|$c|$x\" }",
+  "  Write-Output (\"S \" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + \" \" + ($rows -join ';'))",
+  "  Start-Sleep -Milliseconds $iv",
+  "}",
+].join("\n");
+
+function watchLog(entry) {
+  // Process name, pid, rule, time, who. Never a title, a user or a path.
+  try { fs.appendFileSync(WATCH_LOG, JSON.stringify(Object.assign({ t: new Date().toISOString() }, entry)) + "\n"); } catch (_) {}
+}
+
+function onSamplerLine(line) {
+  const parsed = watchLib.parseSample(line, samplerState.prev, os.cpus().length);
+  if (!parsed) return;
+  samplerState.prev = parsed.cpuMs;
+  samplerState.lastLineAt = Date.now();
+  const totalMem = os.totalmem();
+  const sample = { t: parsed.t, procs: parsed.procs, cpuPct: readCpu(), memPct: Math.round(((totalMem - os.freemem()) / totalMem) * 100) };
+  for (const alert of watch.ingest(sample)) {
+    watchLog({ event: "alert", rule: alert.rule, name: alert.name, pid: alert.pid, who: "watch" });
+    bridge.emit("notice", { text: `watch: ${alert.label}: ${alert.name}${alert.pid ? " " + alert.pid : ""}, ${alert.detail}`, watch: alert });
+    flashPad().catch(() => {});
+  }
+}
+
+function startSampler() {
+  if (!watch.cfg.enabled || process.platform !== "win32") return;
+  const child = spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", SAMPLER_PS], { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+  samplerState.child = child;
+  let buf = "";
+  child.stdout.on("data", (d) => {
+    buf += d;
+    let i;
+    while ((i = buf.indexOf("\n")) >= 0) { onSamplerLine(buf.slice(0, i).trim()); buf = buf.slice(i + 1); }
+  });
+  child.on("exit", () => {
+    samplerState.child = null;
+    samplerState.prev = {};
+    samplerState.restarts++;
+    setTimeout(startSampler, 5000).unref();
+  });
+}
+process.on("exit", () => { if (samplerState.child) samplerState.child.kill(); });
+
+// Two short flashes of the blocked colour on the ambient zone, then hand the
+// light back to state via the bridge's own repaint. Never while talk is live
+// (the gold pulse is the owner's cue that dictation is on) or while pairing.
+// Uses the same bridge surface server.js already uses for keymap backup.
+async function flashPad() {
+  if (!bridge.dev || bridge.pairing || bridge.talkActive) return;
+  const color = ((cfg.statusColors || {}).blocked || {}).color || 0xff2d2d;
+  const dark = { e: 0, b: 0, s: 0.5, m: 1, c: 0 };
+  const on = { e: 1, b: 1, s: 0.5, m: 1, c: color };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let i = 0; i < 2; i++) {
+    await bridge.dev.call("v.oai.rgbcfg", { keys: dark, ambient: on });
+    await wait(220);
+    await bridge.dev.call("v.oai.rgbcfg", { keys: dark, ambient: dark });
+    await wait(180);
+  }
+  await bridge.refresh();
 }
 
 const launcher = require("./lib/launcher");
@@ -135,11 +199,12 @@ const bridge = new MicropadBridge(cfg);
 // hardware only: every route, and every check in front of every route, behaves
 // exactly as it does in a normal run.
 if (process.env.RK_MICROPAD_NO_DEVICE !== "1") bridge.start();
+startSampler();
 
 // SSE clients: the web UI subscribes so it can react to device key presses
 // (talk toggle, action runs) without polling.
 const sseClients = new Set();
-bridge.on("notice", (n) => broadcast({ type: "notice", text: n.text }));
+bridge.on("notice", (n) => broadcast({ type: "notice", text: n.text, watch: n.watch || null }));
 bridge.on("actkeyevent", (e) => broadcast({ type: "actkey", index: e.index, pressed: e.pressed }));
 // AG key events cover the six status keys AND the dial (13/14) and joystick
 // (15-18), so the on-screen dial and toggle can light up when the physical
@@ -281,9 +346,17 @@ const server = http.createServer((req, res) => {
     }
     // The table scrolls, so send a useful depth rather than a screenful.
     if (p === "/api/sys/procs") {
-      readProcesses(25)
-        .then((procs) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ procs })); })
-        .catch((e) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: e.message })); });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ procs: watch.top(25), killable: watch.cfg.killable }));
+      return;
+    }
+    // The watcher: rule table with defaults and reasons, what is alerting now,
+    // what is snoozed, and whether the sampler is alive.
+    if (p === "/api/watch") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(Object.assign(watch.summary(Date.now()), {
+        sampler: { running: !!samplerState.child, lastLineAt: samplerState.lastLineAt, restarts: samplerState.restarts },
+      })));
       return;
     }
     // Does a keymap backup exist, and from when? Drives which of the two
@@ -310,15 +383,45 @@ const server = http.createServer((req, res) => {
     req.on("data", (c) => { body += c; });
     req.on("end", () => {
       try {
-        const { pid } = JSON.parse(body || "{}");
+        const { pid, rule } = JSON.parse(body || "{}");
         if (!Number.isInteger(pid) || pid <= 0) throw new Error("valid pid required");
+        // Only a process on watch.killable can be ended from here. The name
+        // comes from the watcher's last sample, never from the request.
+        const name = watch.nameOf(pid);
+        if (!watch.isKillable(name)) {
+          watchLog({ event: "end", rule: rule || null, name, pid, who: "ui", ok: false, refused: true });
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: false, error: `${name || "pid " + pid} is not on watch.killable in config.json` }));
+          return;
+        }
         execFile("taskkill", ["/PID", String(pid), "/F"], { windowsHide: true, timeout: 10000 }, (err, stdout, stderr) => {
+          watchLog({ event: "end", rule: rule || null, name, pid, who: "ui", ok: !err });
           if (err) { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: (stderr || err.message).trim() })); return; }
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ ok: true, pid }));
         });
       } catch (e) {
         res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // Silence one rule for watch.snoozeMs (30 min by default). Alerts of that
+  // rule leave the banner now and come back only if still true afterwards.
+  if (req.method === "POST" && p === "/api/watch/snooze") {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => {
+      try {
+        const { rule } = JSON.parse(body || "{}");
+        const until = watch.snooze(String(rule || ""), Date.now());
+        watchLog({ event: "snooze", rule, until: new Date(until).toISOString(), who: "ui" });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, rule, until }));
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: e.message }));
       }
     });

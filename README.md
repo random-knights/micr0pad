@@ -144,7 +144,8 @@ If port 4120 is taken, set `RK_MICROPAD_PORT` to something else before starting.
   pick one of the seven the firmware has (solid, pulse, soft pulse, spin,
   rainbow, gradient, off).
 - **A system panel.** CPU, memory, the top processes with an end task button,
-  and an optional energy panel described below.
+  a resource watch that flags what has been wrong for long enough to matter
+  (see below), and an optional energy panel.
 - **Pairing and revert.** Hand the lights back to the firmware so you can pair
   the pad over Bluetooth, or put the original keymap back.
 
@@ -191,6 +192,53 @@ you which directory it settled on:
 2. `cmdDir` in `config.json`
 3. `<app>/cmd`
 4. a `_macropad` folder beside the app
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- RESOURCE WATCH -->
+
+## <span style="color:#555555"><u> **RESOURCE WATCH** </u></span>
+
+The System panel watches the machine the pad is plugged into and says so when
+something has been wrong for long enough to matter. It never ends a process on
+its own: it alerts, and you decide.
+
+**What it watches.** One sampler reads every process every 3 seconds and keeps
+ten minutes of history per process. A rule fires only when its condition has
+held for the whole of its window; one sample short does not count, and a gap in
+sampling starts the window over.
+
+| rule | fires when | why these numbers |
+|---|---|---|
+| `cpuSustained` | total CPU at or above 85% for 90 s | a Flutter web build pins every core for 30 to 60 s; 90 s clears a build and still catches a runaway |
+| `memSustained` | RAM at or above 90% for 60 s | Windows starts trimming and paging near 90%; a minute rules out a transient spike |
+| `processHog` | one process at or above 2 GB working set for 120 s, or at or above 50% CPU for 120 s | above any single healthy renderer, analysis server or node process; half the machine from one process for two minutes is a spin, not work |
+| `hungChrome` | a `chrome.exe` with no CPU at all for 180 s while holding 800 MB or more | a parked renderer keeps its memory and does nothing; an idle background tab sits well under 800 MB |
+| `orphanDev` | a `dart.exe`, `dartvm.exe` or `java.exe` whose parent is gone, or is not an editor, toolchain or shell, for 300 s | analysis servers and Gradle daemons are what editors leave behind. A Gradle daemon detaches from its launcher by design, so it will show here after five minutes; that is the point, snooze it or end it |
+
+**What happens.** The pad's outer light flashes the blocked colour twice and
+goes back to showing agent state (it stays out of the way while talk is on).
+A banner in the System panel names the rule and the process, with an `end`
+button and a `snooze 30 min` button per rule. Every alert and every `end` is
+appended to `watch.log` next to `config.json`: process name, pid, rule, time
+and who asked. No window titles, no user names, no paths.
+
+**What it will not do.** `end` works only on the allowlist `watch.killable`,
+which ships as `chrome.exe`, `dart.exe`, `dartvm.exe`, `java.exe` and
+`msedgewebview2.exe` (on Dart 3.x `dart.exe` is a launcher and the work runs
+in a `dartvm.exe` child, so both are listed).
+The button is disabled for anything else, in the banner and in the process
+table, and the server refuses it again. `node.exe` is deliberately not on the
+list: this server and Herdr are node processes, and ending the wrong one
+leaves the pad's HID handle wedged until you replug it. `watch.autoKill`
+exists in the config and is always off in this version; nothing reads it, and
+the UI says "coming later" with no toggle. An alert-only first version means a
+wrong threshold costs you a banner, not a build.
+
+**Changing thresholds.** Everything is under `"watch"` in `config.json`; the
+shape and the defaults are in `config.example.json`. Set `enabled: false` on
+a rule to silence it for good, change a number to move it, or edit
+`killable` to allow another process. Restart the server after editing.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

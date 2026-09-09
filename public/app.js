@@ -1075,6 +1075,57 @@ function fmtDec(n, digits) {
   return (+n || 0).toLocaleString("en-US", { minimumFractionDigits: digits ?? 1, maximumFractionDigits: digits ?? 1 });
 }
 
+// End a process through the EXISTING kill route. The button is disabled up
+// front for anything not on watch.killable, and the server refuses it again.
+function endButton(p, rule) {
+  const ok = !state.killable || state.killable.includes(String(p.name).toLowerCase());
+  const why = ok ? "End task" : `${p.name} is not on watch.killable in config.json`;
+  return `<button class="kill-btn" data-pid="${p.pid}" data-name="${esc(p.name)}" data-rule="${rule || ""}" title="${esc(why)}"${ok ? "" : " disabled"}>end</button>`;
+}
+function wireEndButtons(root) {
+  root.querySelectorAll(".kill-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      const { pid, name, rule } = btn.dataset;
+      if (!confirm(`End task ${name} (PID ${pid})?`)) return;
+      const r = await apiPost("/api/sys/kill", { pid: Number(pid), rule: rule || undefined });
+      const j = await r.json();
+      btn.textContent = j.ok ? "killed" : "err";
+      if (!j.ok) btn.title = j.error || "refused";
+      setTimeout(() => { btn.textContent = "end"; }, 1500);
+    };
+  });
+}
+
+// Resource watch: badge + banner in the System panel. Polled with the
+// monitor and refreshed at once when a watch notice arrives over SSE.
+async function renderWatch() {
+  const banner = document.getElementById("watchBanner");
+  const badge = document.getElementById("watchBadge");
+  if (!banner || !badge) return;
+  let w;
+  try { w = await getJSON("/api/watch"); } catch (_) { return; }
+  state.killable = w.killable || null;
+  const alerts = w.alerts || [];
+  badge.hidden = alerts.length === 0;
+  badge.textContent = String(alerts.length);
+  banner.hidden = alerts.length === 0;
+  if (!alerts.length) { banner.innerHTML = ""; return; }
+  banner.innerHTML = alerts.map((a) =>
+    `<div class="watch-alert"><span class="w-rule">${esc(a.label)}</span>` +
+    `<span class="w-proc">${esc(a.name)}${a.pid ? " " + a.pid : ""}</span>` +
+    `<span class="w-detail">${esc(a.detail)}</span>` +
+    (a.pid ? endButton(a, a.rule) : "") +
+    `<button class="kill-btn snooze-btn" data-rule="${a.rule}" title="silence this rule for 30 minutes">snooze 30 min</button></div>`
+  ).join("");
+  wireEndButtons(banner);
+  banner.querySelectorAll(".snooze-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      await apiPost("/api/watch/snooze", { rule: btn.dataset.rule });
+      renderWatch();
+    };
+  });
+}
+
 // PC resource monitor: CPU / RAM bars, process count, uptime. Polls /api/sys.
 async function renderSysMonitor() {
   const cpuBar = document.getElementById("cpuBar");
@@ -1104,23 +1155,15 @@ async function renderSysMonitor() {
     const pr = await (await fetch("/api/sys/procs")).json();
     const tbody = document.querySelector("#procTable tbody");
     if (tbody) {
+      if (Array.isArray(pr.killable)) state.killable = pr.killable;
       tbody.innerHTML = (pr.procs || []).map((p) =>
-        `<tr><td>${p.pid}</td><td class="cwd-cell">${p.name}</td><td>${fmtDec(p.memKb / 1024, 0)} MB</td>` +
-        `<td><button class="kill-btn" data-pid="${p.pid}" data-name="${p.name}" title="End task">end</button></td></tr>`
+        `<tr><td>${p.pid}</td><td class="cwd-cell">${esc(p.name)}</td><td>${fmtDec(p.memKb / 1024, 0)} MB</td>` +
+        `<td>${endButton(p)}</td></tr>`
       ).join("");
-      tbody.querySelectorAll(".kill-btn").forEach((btn) => {
-        btn.onclick = async () => {
-          const pid = btn.dataset.pid;
-          const name = btn.dataset.name;
-          if (!confirm(`End task ${name} (PID ${pid})?`)) return;
-          const r = await apiPost("/api/sys/kill", { pid: Number(pid) });
-          const j = await r.json();
-          btn.textContent = j.ok ? "killed" : "err";
-          setTimeout(() => { btn.textContent = "end"; }, 1500);
-        };
-      });
+      wireEndButtons(tbody);
     }
   } catch (_) { /* ignore */ }
+  renderWatch();
 }
 renderSysMonitor();
 setInterval(renderSysMonitor, 3000);
@@ -1223,6 +1266,7 @@ function connectEvents() {
       flashKnob(msg.index);
       return;
     }
+    if (msg.type === "notice" && msg.watch) { renderWatch(); return; }
     if (msg.type === "actkey" && (msg.index === 10 || msg.index === 11) && msg.pressed) {
       const now = Date.now();
       if (now - lastTalkKeyAt < 250) return;
