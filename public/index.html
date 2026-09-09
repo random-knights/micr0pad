@@ -194,10 +194,14 @@
             </table>
           </div>
           <div class="sys-line watch-foot">watch: alerts on sustained CPU, RAM, a process hog, a hung Chrome renderer or an orphaned dart/java. Alert only. Auto-kill: coming later. Thresholds live in config.json under "watch".</div>
-          <h3 class="subhead">AiEDs v2.0.0 Estimates</h3>
-          <div class="aieds-mini">
+          <!-- Both AiEDs blocks fold. Click the heading; the choice is kept per
+               browser in localStorage so the panel stays the way you left it. -->
+          <h3 class="subhead fold-head" data-fold="aieds" data-fold-default="closed" role="button" tabindex="0" aria-expanded="false" title="show or hide the per-model table">AiEDs v2.0.0 Estimates</h3>
+          <div class="aieds-mini fold-body" data-fold-body="aieds">
             <div id="debugAieds" class="debug-aieds aieds-scroll"></div>
-            <h3 class="subhead trend-head">30-day Trend</h3>
+          </div>
+          <h3 class="subhead trend-head fold-head" data-fold="trend" role="button" tabindex="0" aria-expanded="true" title="show or hide the 30-day trend">30-day Trend</h3>
+          <div class="aieds-mini fold-body" data-fold-body="trend">
             <div id="aiedsStats" class="aieds-totals" hidden></div>
             <div id="aiedsChartRow" class="aieds-chart-row" hidden>
               <div class="aieds-chart-wrap">
@@ -206,8 +210,8 @@
                 <div id="aiedsRange" class="aieds-range"></div>
               </div>
             </div>
-            <p class="aieds-fineprint" title="AiEDs v2.0.0 - modeled energy and carbon, not measured. Cost is modeled at published list prices, not billed spend.">read more @ <a href="https://randomknights.xyz/aieds" target="_blank" rel="noopener">randomknights.xyz/aieds</a></p>
           </div>
+          <p class="aieds-fineprint" title="AiEDs v2.0.0 - modeled energy and carbon, not measured. Cost is modeled at published list prices, not billed spend.">read more @ <a href="https://randomknights.xyz/aieds" target="_blank" rel="noopener">randomknights.xyz/aieds</a></p>
 
         </div>
 

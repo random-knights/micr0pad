@@ -1012,16 +1012,21 @@ function drawAiedsChart() {
   const w = 320, h = 100, padL = 3, padR = 3, padT = 8, padB = 6;
   const n = aiedsSeries.length;
   if (n < 2) {
-    svg.setAttribute("viewBox", "0 0 " + w + " " + h);
-    svg.innerHTML =
-      '<line x1="0" y1="' + (h - padB) + '" x2="' + w + '" y2="' + (h - padB) +
-      '" stroke="rgba(255,124,72,0.28)" stroke-width="1" stroke-dasharray="4 3" ' +
-      'vector-effect="non-scaling-stroke"/>';
+    // Fewer than two days in the log: no line to draw. Say so in words and
+    // hide the chips and the box rather than showing an empty frame.
+    const chips = document.getElementById("aiedsChips");
+    if (chips) chips.hidden = true;
+    svg.hidden = true;
     const range0 = document.getElementById("aiedsRange");
-    if (range0) range0.textContent = "no activity yet";
+    if (range0) range0.textContent = n === 0
+      ? "no AiEDs log found yet: the trend fills in as sessions end (AIEDS_LOG_PATH, or aieds-local.jsonl beside the app)"
+      : "one day of activity so far; the trend needs two";
     row.hidden = false;
     return;
   }
+  svg.hidden = false;
+  const chipsEl = document.getElementById("aiedsChips");
+  if (chipsEl) chipsEl.hidden = false;
   const x = (i) => padL + (i * (w - padL - padR)) / (n - 1);
   const norm = (v, max) => {
     if (max <= 0) return 0;
@@ -1218,6 +1223,34 @@ function wireNotes() {
   });
 }
 wireNotes();
+
+// Folding sections (the two AiEDs blocks). Closed state is remembered per
+// browser under one localStorage key per section; a browser that blocks
+// storage simply forgets on reload.
+function wireFolds() {
+  document.querySelectorAll(".fold-head[data-fold]").forEach((head) => {
+    const name = head.dataset.fold;
+    const body = document.querySelector(`[data-fold-body="${name}"]`);
+    if (!body) return;
+    const key = "0p.fold." + name;
+    const apply = (closed) => {
+      head.classList.toggle("closed", closed);
+      body.classList.toggle("closed", closed);
+      head.setAttribute("aria-expanded", closed ? "false" : "true");
+    };
+    let closed = head.dataset.foldDefault === "closed";
+    try { const v = localStorage.getItem(key); if (v !== null) closed = v === "1"; } catch (_) {}
+    apply(closed);
+    const flip = () => {
+      closed = !head.classList.contains("closed");
+      apply(closed);
+      try { localStorage.setItem(key, closed ? "1" : "0"); } catch (_) {}
+    };
+    head.onclick = flip;
+    head.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } };
+  });
+}
+wireFolds();
 
 async function poll() {
   try {
