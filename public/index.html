@@ -170,6 +170,18 @@
               <button id="revertKeymap" type="button" class="device-btn danger">revert keymap</button>
             </div>
           </div>
+
+          <!-- Hosted pairing (RK-44). A page on rand0m.ai is a different
+               origin, so it is refused until the owner puts a code from this
+               box into it. The code lives five minutes and is worth one use. -->
+          <div class="panel-section hug device-section">
+            <h3 class="subhead">Hosted Pages <span class="hint">(pair a page on rand0m.ai with this bridge)</span></h3>
+            <div id="pairCode" class="pair-code" hidden></div>
+            <div id="pairList" class="band-list"></div>
+            <div class="device-actions">
+              <button id="pairHosted" type="button" class="device-btn">show pairing code</button>
+            </div>
+          </div>
         </div>
       </div>
 

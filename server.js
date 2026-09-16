@@ -7,6 +7,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { execFile, spawn } = require("child_process");
 const config = require("./lib/config");
+const { Pairing } = require("./lib/pairing");
 const { MicropadBridge } = require("./lib/bridge");
 
 const PORT = process.env.RK_MICROPAD_PORT || 4120;
@@ -22,10 +23,35 @@ config.writeExample();
 const PAIRING_TOKEN = cfg.pairingToken;
 const ALLOWED_ORIGIN = `http://localhost:${PORT}`;
 
+// The hosted side of the same question. ALLOWED_ORIGIN is the ONE origin that
+// is trusted because of where it is; a paired origin is trusted because the
+// owner put a code from this screen into that page. See lib/pairing.js.
+const pairing = new Pairing(cfg, { persist: (list) => config.savePairings(list) });
+
+// Routes a PAIRED origin may never reach, whatever token it holds:
+//
+//   /api/pairing-token  hands out the LOCAL page's token. Giving it to a
+//                       hosted page would let that page act as the local
+//                       page, which is the whole thing pairing replaces.
+//   /api/pair/start     mints a pairing code. A paired page that could mint
+//                       codes could pair further origins without the owner.
+//   /api/sys/kill       ends a process on this machine. Pairing is a remote
+//                       capability and ending a process is not one; the owner
+//                       does that from the machine it happens on.
+//
+// Everything else - the reads, the config writes, the light and keymap
+// routes - is the same surface the local page has. README says so in the
+// security section, because a paired page being able to run an action key is
+// a real consequence of pairing and not a footnote.
+const LOCAL_ONLY_ROUTES = new Set(["/api/pairing-token", "/api/pair/start", "/api/sys/kill"]);
+
 // GET /api/config and /api/state echo the live config back to the page;
 // strip the token before it ever reaches a JSON response.
 function redactConfig(c) {
-  const { pairingToken, ...rest } = c;
+  const { pairingToken, pairings, ...rest } = c;
+  // Pairings go out through /api/pair, which returns labels, origins and
+  // dates. The raw array carries tokenHash, so it never rides along on
+  // /api/state or /api/config.
   return rest;
 }
 
@@ -38,35 +64,85 @@ function redactConfig(c) {
 // included, so a mutation can fail closed on a missing header without
 // affecting the real UI. Same-origin GET fetches carry no Origin header at
 // all, so a read can only reject a MISMATCHED one. That gap is closed by
-// the second half of the read policy: no /api/ response carries an
-// Access-Control-Allow-Origin header, so a cross-origin page can reach a
-// GET handler but the browser will not let its JS read the body.
-function originAllowed(req, res, { requireHeader }) {
+// the second half of the read policy: an UNPAIRED cross-origin response
+// carries no Access-Control-Allow-Origin header at all, so such a page can
+// reach a GET handler but the browser will not let its JS read the body.
+// There is no wildcard anywhere: the only value this server ever puts in that
+// header is the exact origin of a caller that holds a pairing.
+//
+// A PAIRED hosted origin is the second way through, and only the second way:
+// it must send an Origin this bridge has a pairing for AND the bearer token
+// that pairing was issued with. Reads and writes are judged the same way, so
+// there is no read that a hosted page can do unpaired.
+function bearerToken(req) {
+  const header = String(req.headers.authorization || "");
+  return header.startsWith("Bearer ") ? header.slice(7) : "";
+}
+
+// Who is asking? Exactly one of:
+//   { kind: "local" }   the pad's own page (or a same-origin GET, which
+//                       carries no Origin header at all)
+//   { kind: "paired" }  a hosted origin presenting its pairing token
+//   null                refused, and the 403 has already been written
+function callerOf(req, res, { requireHeader }) {
   const origin = req.headers.origin;
-  if (origin === ALLOWED_ORIGIN) return true;
-  if (!origin && !requireHeader) return true;
+  if (origin === ALLOWED_ORIGIN) return { kind: "local", origin };
+  if (!origin) {
+    if (!requireHeader) return { kind: "local", origin: null };
+  } else {
+    const paired = pairing.match(origin, bearerToken(req));
+    if (paired) return { kind: "paired", origin, id: paired.id };
+  }
   res.writeHead(403, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
-  return false;
+  return null;
 }
 
-// A read proves it came from the pad's own page. A mutation proves that and
-// that it is the pad's own page, not just any page on that origin (the
-// pairing token).
-function authorizeRead(req, res) {
-  return originAllowed(req, res, { requireHeader: false });
+// A paired origin's JS has to be able to READ the body it asked for, so its
+// response - and only its response - carries the exact origin back. Never a
+// wildcard, and never for a local response, which does not need one.
+function allowPairedOrigin(res, origin) {
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
 }
 
-function authorizeMutation(req, res) {
-  if (!originAllowed(req, res, { requireHeader: true })) return false;
+function refuseLocalOnly(res) {
+  res.writeHead(403, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: false, error: "this route is local to the machine the pad is on" }));
+  return null;
+}
+
+// A read proves it came from the pad's own page, or from a paired origin. A
+// mutation proves that and, for the LOCAL page, that it is the pad's own page
+// rather than any page on that origin (the pairing token). A paired caller
+// has already proved that with its bearer token; asking it for the local
+// token too would mean handing the local token to a hosted page.
+function authorizeRead(req, res, pathname) {
+  const who = callerOf(req, res, { requireHeader: false });
+  if (!who) return null;
+  if (who.kind === "paired") {
+    if (LOCAL_ONLY_ROUTES.has(pathname)) return refuseLocalOnly(res);
+    allowPairedOrigin(res, who.origin);
+  }
+  return who;
+}
+
+function authorizeMutation(req, res, pathname) {
+  const who = callerOf(req, res, { requireHeader: true });
+  if (!who) return null;
+  if (who.kind === "paired") {
+    if (LOCAL_ONLY_ROUTES.has(pathname)) return refuseLocalOnly(res);
+    allowPairedOrigin(res, who.origin);
+    return who;
+  }
   const supplied = Buffer.from(String(req.headers["x-pairing-token"] || ""), "utf8");
   const expected = Buffer.from(PAIRING_TOKEN, "utf8");
   if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
     res.writeHead(401, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: "pairing token required" }));
-    return false;
+    return null;
   }
-  return true;
+  return who;
 }
 
 // The machine this micropad bridge is running on (the PC the pad is plugged
@@ -253,16 +329,119 @@ function runAction(action) {
   return { ok: true, command: action.cmd };
 }
 
+// Read a JSON request body. Capped, because an unbounded read on a route that
+// has not been authorized yet is a way to make this process hold memory for a
+// stranger; 8 KB is far above any body these routes take.
+function readJsonBody(req, res, then) {
+  let body = "";
+  let tooBig = false;
+  req.on("data", (c) => {
+    body += c;
+    if (body.length > 8192 && !tooBig) {
+      tooBig = true;
+      res.writeHead(413, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "body too large" }));
+      req.destroy();
+    }
+  });
+  req.on("end", () => {
+    if (tooBig) return;
+    let parsed = {};
+    try { parsed = JSON.parse(body || "{}"); } catch (_) { parsed = null; }
+    if (parsed === null || typeof parsed !== "object") {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "expected a JSON object" }));
+      return;
+    }
+    then(parsed);
+  });
+}
+
+// CORS preflight. The browser is asking "may this origin send you an
+// Authorization header?", and the honest answers are: yes for an origin that
+// already holds a pairing, yes for a hosted origin asking about
+// /api/pair/complete (the one route that exists to create one), no otherwise.
+// A refusal is a 403 with no CORS headers, which is what makes the browser
+// block the real request.
+function answerPreflight(req, res, pathname) {
+  const origin = req.headers.origin;
+  const wanted = String(req.headers["access-control-request-method"] || "").toUpperCase();
+  // A preflight carries no Authorization header - that is what it is asking
+  // about - so entitlement here is by ORIGIN only. The real request is still
+  // judged on its token; this only decides whether the browser may send it.
+  const knownOrigin = Boolean(origin) && cfgHasPairingFor(origin);
+  const pairingAttempt = Boolean(origin) && pathname === "/api/pair/complete" && pairing.mayAttemptPairing(origin);
+  if (!knownOrigin && !pairingAttempt) {
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
+    return;
+  }
+  if (pathname === "/api/pair/complete" && wanted && wanted !== "POST") {
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
+    return;
+  }
+  res.writeHead(204, {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, content-type",
+    "Access-Control-Max-Age": "600",
+    Vary: "Origin",
+  });
+  res.end();
+}
+
+// Does ANY pairing exist for this origin? Used only by the preflight, which
+// cannot see a token. It leaks one bit (this origin has paired with this
+// bridge) to a page that is already on the hosted list or already paired.
+function cfgHasPairingFor(origin) {
+  return cfg.pairings.some((x) => x.origin === String(origin));
+}
+
+// Step 2 and 3 of the handshake (lib/pairing.js has the whole shape). The
+// origin comes from the browser's own Origin header, never from the body, so
+// a page cannot claim to be somewhere else. The token is in the response and
+// nowhere else, ever.
+function handlePairComplete(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || !pairing.mayAttemptPairing(origin)) {
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
+    return;
+  }
+  readJsonBody(req, res, (parsed) => {
+    const result = pairing.complete(parsed.code, origin, parsed.label, Date.now());
+    res.writeHead(result.ok ? 200 : 400, {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": origin,
+      Vary: "Origin",
+    });
+    res.end(JSON.stringify(result));
+  });
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
 
   // Every /api/ request is judged before any handler runs. A GET proves its
   // origin; anything else proves its origin and carries the pairing token.
+  // A paired hosted origin satisfies both with its bearer token.
+  let caller = null;
   if (p.startsWith("/api/")) {
+    // A browser asks permission before it sends an Authorization header
+    // cross-origin. Answering the preflight is part of the policy, not a
+    // bypass of it: it says yes to exactly the callers the policy says yes to.
+    if (req.method === "OPTIONS") return answerPreflight(req, res, p);
+    // The one route a not-yet-paired hosted origin may reach, because there
+    // is no way to become paired without it. Its own gate is inside.
+    if (req.method === "POST" && p === "/api/pair/complete") return handlePairComplete(req, res);
     if (req.method === "GET") {
-      if (!authorizeRead(req, res)) return;
-    } else if (!authorizeMutation(req, res)) return;
+      caller = authorizeRead(req, res, p);
+    } else {
+      caller = authorizeMutation(req, res, p);
+    }
+    if (!caller) return;
   }
 
   // The page's own bootstrap read: the token has to reach the UI somehow
@@ -305,6 +484,20 @@ const server = http.createServer((req, res) => {
     if (p === "/api/config") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(redactConfig(cfg)));
+      return;
+    }
+    // The pairings this bridge holds: who, what they called it, and when.
+    // No token, no hash. `pending` is whether a code is on screen right now,
+    // so the local dashboard can show the code box as live - the code itself
+    // is only ever in the /api/pair/start response that put it on screen.
+    if (p === "/api/pair") {
+      const pending = pairing.pendingFor(Date.now());
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        pairings: pairing.list(),
+        hostedOrigins: pairing.hostedOrigins,
+        pending: pending ? { expiresAt: pending.expiresAt } : null,
+      }));
       return;
     }
     // Where action commands are searched for, so the settings editor can show
@@ -375,6 +568,32 @@ const server = http.createServer((req, res) => {
       return;
     }
     res.writeHead(404); res.end();
+    return;
+  }
+
+  // Step 1 of the handshake: mint a code and show it. LOCAL_ONLY_ROUTES keeps
+  // a paired page out of here, and authorizeMutation has already proved the
+  // local pairing token, so this is the owner at the machine.
+  if (req.method === "POST" && p === "/api/pair/start") {
+    const started = pairing.start(Date.now());
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, code: started.code, expiresAt: started.expiresAt }));
+    return;
+  }
+
+  // Revoke. Either end may do it: the owner from the local dashboard, or the
+  // hosted page disconnecting itself. A paired caller may only revoke ITS OWN
+  // pairing - one paired origin cannot cut another one off.
+  if (req.method === "DELETE" && p.startsWith("/api/pair/")) {
+    const id = decodeURIComponent(p.slice("/api/pair/".length));
+    if (caller && caller.kind === "paired" && caller.id !== id) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "a paired origin may only revoke its own pairing" }));
+      return;
+    }
+    const removed = pairing.revoke(id);
+    res.writeHead(removed ? 200 : 404, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: removed, id }));
     return;
   }
 

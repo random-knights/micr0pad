@@ -6,6 +6,11 @@
     "enabled": true,
     "onUnplug": false
   },
+  "hostedOrigins": [
+    "https://rand0m.ai",
+    "https://abc-rand0m-ai.web.app"
+  ],
+  "pairings": [],
   "analytics": {
     "enabled": false
   },

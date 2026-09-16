@@ -32,10 +32,11 @@ async function getJSON(url) {
   return await r.json();
 }
 
-// Pairing token bootstrap: fetched once, same-origin only. No /api/ response
-// sets Access-Control-Allow-Origin, and a request that names another origin is
-// refused outright, so the token cannot leave this page. Attached to every
-// state-changing request below; without it the server refuses.
+// Pairing token bootstrap: fetched once, same-origin only. /api/pairing-token
+// is on the server's local-only list, so it is refused outright for any origin
+// other than this page - including a hosted page that holds a pairing. The
+// token therefore cannot leave this page. Attached to every state-changing
+// request below; without it the server refuses.
 let pairingTokenPromise = null;
 function pairingToken() {
   if (!pairingTokenPromise) pairingTokenPromise = fetch("/api/pairing-token").then((r) => r.json()).then((j) => j.token);
@@ -1347,3 +1348,93 @@ function connectEvents() {
   es.onerror = () => { es.close(); setTimeout(connectEvents, 3000); };
 }
 connectEvents();
+
+// HOSTED PAIRING (RK-44)
+//
+// The local page is the only place a pairing can START. It asks the bridge
+// for a code, shows it, and the owner carries it to the hosted page by hand.
+// That hand-carry IS the security boundary: it is what proves the person at
+// the hosted page is the person at this machine.
+//
+// This panel never sees a hosted token. /api/pair returns labels, origins and
+// dates; the token exists once, in the hosted page's own response.
+async function apiDelete(url) {
+  const token = await pairingToken();
+  return fetch(url, { method: "DELETE", headers: { "X-Pairing-Token": token } });
+}
+
+let pairCountdown = null;
+
+function renderPairCode(code, expiresAt) {
+  const box = document.getElementById("pairCode");
+  if (!box) return;
+  if (pairCountdown) { clearInterval(pairCountdown); pairCountdown = null; }
+  if (!code) { box.hidden = true; box.textContent = ""; return; }
+  const tick = () => {
+    const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+    if (left <= 0) {
+      renderPairCode(null);
+      return;
+    }
+    box.innerHTML = "";
+    box.append(code);
+    const note = document.createElement("span");
+    note.className = "pair-expiry";
+    note.textContent = "type this into the hosted page - " + left + "s left, one use";
+    box.append(note);
+  };
+  box.hidden = false;
+  tick();
+  pairCountdown = setInterval(tick, 1000);
+}
+
+async function renderPairings() {
+  const box = document.getElementById("pairList");
+  if (!box) return;
+  let data;
+  try { data = await getJSON("/api/pair"); } catch (_) { return; }
+  box.innerHTML = "";
+  if (!data.pairings || !data.pairings.length) {
+    const empty = document.createElement("div");
+    empty.className = "pair-empty";
+    empty.textContent = "No hosted page is paired. Allowed to ask: " + (data.hostedOrigins || []).join(", ");
+    box.append(empty);
+    return;
+  }
+  for (const p of data.pairings) {
+    const row = document.createElement("div");
+    row.className = "pair-row";
+    const left = document.createElement("span");
+    left.textContent = p.label;
+    const meta = document.createElement("span");
+    meta.className = "pair-meta";
+    meta.textContent = p.origin + " - " + new Date(p.createdAt).toLocaleDateString();
+    const cut = document.createElement("button");
+    cut.type = "button";
+    cut.className = "device-btn danger";
+    cut.textContent = "revoke";
+    cut.addEventListener("click", async () => {
+      cut.disabled = true;
+      await apiDelete("/api/pair/" + encodeURIComponent(p.id));
+      renderPairings();
+    });
+    row.append(left, meta, cut);
+    box.append(row);
+  }
+}
+
+const pairHostedBtn = document.getElementById("pairHosted");
+if (pairHostedBtn) {
+  pairHostedBtn.addEventListener("click", async () => {
+    pairHostedBtn.disabled = true;
+    try {
+      const res = await apiPost("/api/pair/start");
+      const j = await res.json();
+      if (j.ok) renderPairCode(j.code, j.expiresAt);
+    } finally {
+      pairHostedBtn.disabled = false;
+    }
+    renderPairings();
+  });
+  renderPairings();
+}
