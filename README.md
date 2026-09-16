@@ -385,6 +385,37 @@ no pad plugged into it. Anything that needs real hardware is checked by hand
 against a real pad, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) says which
 parts those are.
 
+**What is covered without hardware.** The transport and adapter modules run
+under `node --test` with no pad and no Herdr installed, using a virtual pad
+and recorded Herdr output in place of both:
+
+- `wldevice.js` - the report framing, the JSON-RPC envelope (report id,
+  channel, chunking), the notify/response split, and the absent-device error,
+  all through pure functions the module exports for this reason. The one
+  thing never done here is opening a real HID handle.
+- `pad.js` - the key/action id maps, the status color and effect table, the
+  worst-of-six underglow priority order, and the hex color packer.
+- `mapper.js` - assigning live agents to the 6 slots by agent/cwd/title match,
+  the per-slot color override, and the worst-of-six rule that drives the
+  underglow.
+- `herdr.js` - parsing `herdr agent list` output into the pad's agent shape
+  for idle, working, blocked, done and an unrecognized status, and the
+  optional-herdr path (a clear rejection, not a hang, when the binary is
+  missing). `execFile` is injected so no process is spawned.
+- `launcher.js` - the `.cmd` file search order (`MICROPAD_CMD_DIR`, then
+  `config.json`'s `cmdDir`, then `<app>/cmd`, then the sibling `_macropad`
+  folders) and that an absolute path in config wins outright.
+- `bridge.js` - the full handover state machine (virtual pad in, physical pad
+  takes over, unplug is not silently backfilled, a replay failure is
+  reported but the new device stays connected, an empty snapshot replays
+  nothing, the outgoing virtual pad is closed).
+
+**What still needs the hardware.** Actually opening the Work Louder vendor HID
+interface (`wldevice.js`'s `open()` against a real device), and the flash
+scripts (`backup-keymap.js`, `restore-keymap.js`, `add-layers.js`,
+`bind-dial-joy.js`) - every one of those is checked by hand against a real
+pad, as [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) says.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- CREDITS -->

@@ -168,3 +168,64 @@ test("the real config ships the virtual pad on, and the fallback off", () => {
   const d = config.defaults();
   assert.deepEqual(d.virtualPad, { enabled: true, onUnplug: false });
 });
+
+// --- RK-43: handover edge cases not covered by RK-42's happy-path tests. ---
+
+test("handover(): connect() still fails mid-poll and the SAME virtual pad is kept, not replaced", async () => {
+  const { bridge } = bridgeWith([]);
+  await bridge.refresh();
+  const virtual = bridge.dev;
+  assert.equal(bridge.deviceKind(), "virtual");
+  // Next poll: still no physical pad (openHid script is empty, so connect()
+  // keeps throwing). handover() must return false and leave dev untouched.
+  const result = await bridge.handover();
+  assert.equal(result, false);
+  assert.equal(bridge.dev, virtual, "the exact same virtual instance, not a fresh one");
+  assert.equal(bridge.deviceKind(), "virtual");
+});
+
+test("handover(): a replay failure is reported but the new physical device is kept connected", async () => {
+  const hid = fakeHid();
+  hid.call = () => Promise.reject(new Error("write timed out"));
+  const { bridge, notices } = bridgeWith([new Error("no pad"), hid]);
+  await bridge.refresh(); // virtual pad, with something painted on it
+  assert.equal(bridge.deviceKind(), "virtual");
+
+  const result = await bridge.handover();
+  assert.equal(result, true, "handover still reports success: the pad IS connected");
+  assert.equal(bridge.deviceKind(), "hid", "the physical pad stays attached despite the failed replay");
+  assert.ok(
+    notices.some((n) => n.startsWith("device connected but the replay failed:")),
+    "the replay failure is surfaced, not swallowed"
+  );
+  assert.ok(notices.includes("physical pad connected: the virtual pad has stepped aside"));
+});
+
+test("handover(): an empty snapshot (nothing painted yet) writes nothing to the new pad", async () => {
+  const hid = fakeHid();
+  const { bridge } = bridgeWith([new Error("no pad"), hid]);
+  // connect() consumes the first script entry (the Error) without a poll, so
+  // startVirtual() attaches a bare virtual pad that has never been painted -
+  // refresh() would paint it immediately, which is exactly what this test
+  // needs to NOT happen yet.
+  assert.equal(bridge.connect(), false);
+  assert.equal(bridge.startVirtual(), true);
+  assert.deepEqual(bridge.dev.snapshot(), { threads: [], zones: { keys: null, ambient: null } }, "a fresh virtual pad has painted nothing");
+
+  const result = await bridge.handover();
+  assert.equal(result, true);
+  assert.deepEqual(hid.calls, [], "no thstatus and no rgbcfg call when there was nothing to replay");
+});
+
+test("handover(): the outgoing virtual pad is closed once the physical pad is attached", async () => {
+  const hid = fakeHid();
+  const { bridge } = bridgeWith([new Error("no pad"), hid]);
+  await bridge.refresh();
+  const virtual = bridge.dev;
+  assert.equal(virtual.descriptor.kind, "virtual");
+
+  await bridge.handover();
+  // virtualdevice.js marks itself closed and refuses further calls; proving
+  // that here (rather than reading a private flag) is what "closed" means.
+  await assert.rejects(() => virtual.call("v.oai.thstatus", []), /closed/);
+});
