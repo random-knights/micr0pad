@@ -1080,3 +1080,24 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
   .band { justify-content: center; padding: 3px 6px; }
   .device-section .device-actions { margin-top: 7px; }
 }
+
+/* Hosted pairing code: big, monospaced and widely spaced, because it is read
+   off this screen and typed into another one. */
+.pair-code {
+  font-family: var(--mono, ui-monospace, "Cascadia Mono", Consolas, monospace);
+  font-size: 22px;
+  letter-spacing: 6px;
+  text-align: center;
+  padding: 10px 4px 6px;
+  user-select: all;
+}
+.pair-code .pair-expiry {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0;
+  opacity: 0.7;
+  padding-top: 4px;
+}
+.pair-row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.pair-row .pair-meta { opacity: 0.7; font-size: 11px; }
+.pair-empty { opacity: 0.7; font-size: 12px; padding: 4px 0; }

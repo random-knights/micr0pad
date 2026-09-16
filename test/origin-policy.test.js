@@ -24,20 +24,36 @@ const { spawn } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const SERVER = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
 
-test("no response advertises itself as readable by any origin", () => {
+// This test used to assert that server.js contained the string
+// "Access-Control-Allow-Origin" nowhere at all. Pairing (RK-44) makes that
+// assertion false on purpose: a paired hosted origin has to be able to read
+// the body it asked for. What has NOT changed is the thing that assertion was
+// protecting, so that is what is asserted now - no wildcard, and no constant
+// origin value, only the origin of the caller being answered.
+test("no response advertises itself as readable by ANY origin", () => {
   assert.equal(
-    SERVER.includes('"Access-Control-Allow-Origin"'),
+    SERVER.includes('"Access-Control-Allow-Origin", "*"'),
     false,
-    "server.js must not set Access-Control-Allow-Origin: a wildcard there lets any page's JS read /api/state (the machine name) and /api/sys/procs (the process table)",
+    "a wildcard lets any page's JS read /api/state (the machine name) and /api/sys/procs (the process table)",
+  );
+  assert.equal(
+    /Access-Control-Allow-Origin["']?\s*[:,]\s*["'][^"']/.test(SERVER),
+    false,
+    "the value of that header must always be a variable holding the caller's own origin, never a literal",
   );
 });
 
 test("every /api/ request is judged before any handler runs", () => {
   const gate = SERVER.indexOf('if (p.startsWith("/api/")) {');
   assert.ok(gate > 0, "the /api/ origin gate must exist");
-  assert.match(SERVER.slice(gate, gate + 260), /authorizeRead\(req, res\)/);
-  assert.match(SERVER.slice(gate, gate + 260), /authorizeMutation\(req, res\)/);
-  // Nothing under /api/ may answer ahead of the gate.
+  const block = SERVER.slice(gate, gate + 1200);
+  assert.match(block, /authorizeRead\(req, res, p\)/);
+  assert.match(block, /authorizeMutation\(req, res, p\)/);
+  assert.match(block, /if \(!caller\) return;/, "a refused caller must stop the request");
+  // Nothing under /api/ may answer ahead of the gate. The two routes that
+  // answer INSIDE the gate block before authorize* runs are the CORS
+  // preflight and /api/pair/complete, and each carries its own policy: see
+  // answerPreflight and handlePairComplete.
   assert.equal(
     SERVER.slice(0, gate).includes('p === "/api/'),
     false,
@@ -45,16 +61,31 @@ test("every /api/ request is judged before any handler runs", () => {
   );
 });
 
+// The routes that pairing must never reach, held by name. A route added to
+// this list is a decision; a route quietly dropped from it is a hole.
+test("a paired origin is kept out of the local-only routes", () => {
+  const line = SERVER.match(/const LOCAL_ONLY_ROUTES = new Set\(\[([^\]]*)\]\)/);
+  assert.ok(line, "LOCAL_ONLY_ROUTES must exist");
+  for (const route of ["/api/pairing-token", "/api/pair/start", "/api/sys/kill"]) {
+    assert.ok(line[1].includes(route), `${route} must stay local-only`);
+  }
+  assert.match(SERVER, /if \(LOCAL_ONLY_ROUTES\.has\(pathname\)\) return refuseLocalOnly\(res\);/);
+});
+
 test("a read tolerates a missing Origin, a mutation does not", () => {
   // assert.match on the whole file prints 19k characters on failure, so these
   // assert the boolean and say what is missing instead.
   assert.ok(
-    /function authorizeRead\(req, res\) \{\s*return originAllowed\(req, res, \{ requireHeader: false \}\);/.test(SERVER),
+    /function authorizeRead\(req, res, pathname\) \{\s*const who = callerOf\(req, res, \{ requireHeader: false \}\);/.test(SERVER),
     "authorizeRead must allow a missing Origin: same-origin GET fetches send none",
   );
   assert.ok(
-    /function authorizeMutation\(req, res\) \{\s*if \(!originAllowed\(req, res, \{ requireHeader: true \}\)\) return false;/.test(SERVER),
+    /function authorizeMutation\(req, res, pathname\) \{\s*const who = callerOf\(req, res, \{ requireHeader: true \}\);/.test(SERVER),
     "authorizeMutation must require an Origin header and fail closed without one",
+  );
+  assert.ok(
+    /if \(!origin\) \{\s*if \(!requireHeader\) return \{ kind: "local", origin: null \};/.test(SERVER),
+    "a missing Origin resolves to local only for a read, never for a mutation",
   );
 });
 

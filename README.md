@@ -293,6 +293,58 @@ this. The pairing token is what stands in its way on anything that changes
 something, and a local program that can read your `config.json` has already
 read the token.
 
+### Pairing a hosted page
+
+There is one deliberate way through that wall, and you open it by hand.
+
+A page on `https://rand0m.ai` is a different origin, so by default it is
+refused exactly like any other site. To let it in, press **show pairing code**
+in the Hosted Pages box on this dashboard. The app puts an eight-character code
+on screen. Type that code into the hosted page. The page sends it back, the app
+checks it, and hands that page a token for its own origin.
+
+What each piece is doing:
+
+- **The code is carried by you.** That is the whole security boundary. A page
+  can only pair if somebody sitting at this machine read a code off this screen
+  and typed it over there. The code lives five minutes, is worth one use, and a
+  wrong guess burns it.
+- **The token is shown once and stored as a hash.** Your `config.json` ends up
+  with the origin, a label, a date and a SHA-256 digest. Someone who reads that
+  file cannot pair with it, which is not true of the local pairing token
+  sitting beside it.
+- **The origin is part of the pairing.** The browser attaches the page's origin
+  to every request and a page cannot forge it, so a token lifted from one site
+  does not work from another.
+- **The list of sites that may even ask is fixed.** `hostedOrigins` in
+  `config.json`, shipping as `https://rand0m.ai` and
+  `https://abc-rand0m-ai.web.app`. It is never a wildcard: an entry that is not
+  a plain `https://` origin is dropped rather than honoured.
+
+**What a paired page can do:** everything the local dashboard can, with three
+exceptions. It reads pad and agent state, system metrics and the process table,
+and it can save config, drive the lights and run an action key. Pairing a page
+is handing it your pad, not lending it a window.
+
+**What a paired page cannot do, ever:**
+
+| route | why it stays on this machine |
+|---|---|
+| `/api/pairing-token` | it hands out the LOCAL page's token; giving it away would let a hosted page act as the local page, which is what pairing replaces |
+| `/api/pair/start` | minting codes is how pairings are created, and only the person at the machine creates one |
+| `/api/sys/kill` | ending a process is a thing you do at the machine it happens on |
+
+**Revoking.** Press **revoke** next to a pairing here, or **disconnect** on the
+hosted page. Either end cuts it, and the token stops working immediately; a
+paired page can only revoke its own pairing, never somebody else's.
+
+**Mixed content.** The hosted page is `https` and this bridge is plain `http`
+on localhost. Browsers carve localhost out of the mixed-content rules, so the
+call is allowed: verified in headless Chrome 153 with a self-signed `https`
+page against a local bridge, where the paired read returned 200 and the console
+reported no mixed-content block at all. The only refusal in that run was this
+app's own, for the unpaired attempt.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ENERGY -->
