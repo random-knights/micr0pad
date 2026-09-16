@@ -149,6 +149,27 @@ If port 4120 is taken, set `RK_MICROPAD_PORT` to something else before starting.
 - **Pairing and revert.** Hand the lights back to the firmware so you can pair
   the pad over Bluetooth, or put the original keymap back.
 
+### Without a pad
+
+You do not need the hardware to run this. When no Work Louder pad is on the USB
+bus, the app serves a **virtual pad**: the same six status keys, lit by the same
+agent states, with the browser mirror as the pad itself. The header says
+`virtual pad` so you always know which one you are looking at, and the keys in
+the mirror become clickable, so a press does what pressing the real key does.
+
+It is the same code path either way. The virtual pad answers the same commands
+the firmware answers, and refuses the ones the firmware refuses rather than
+pretending they worked. The two things it cannot do are the two that live in the
+device flash: it has no keymap to back up and none to restore, so those buttons
+wait for real hardware.
+
+Plug a pad in at any point and it takes over on the next poll, with the colours
+it was already showing painted straight onto the keys. Unplug one and the app
+says the pad is gone rather than slipping back to a virtual one behind your
+back; set `virtualPad.onUnplug` to `true` in `config.json` if you would rather
+it did fall back, and `virtualPad.enabled` to `false` to turn the whole thing
+off.
+
 ### The pad
 
 ```
@@ -256,6 +277,12 @@ changes something also has to carry the pairing token that was minted into
 your `config.json` on first run. Without both, the answer is a refusal, not an
 action. The token is a secret. It is never printed, never logged and never
 returned to a page from another origin.
+
+Pressing a key on the virtual pad is one of those changing requests. Clicking a
+key in the browser mirror is not a shortcut around any of this: it proves its
+origin and carries the token exactly as ending a process does, and the server
+refuses it outright while a physical pad is connected, because a click is not a
+press of hardware nobody touched.
 
 That applies to reading as well as to changing. A page on another site asking
 this server for your machine's name or your process list is refused, and no

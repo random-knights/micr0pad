@@ -220,9 +220,19 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .panel-subtitle a { color: var(--focus); }
 .panel-subtitle a:hover { color: var(--orange); }
 
-.device-status { font-size: 12px; margin-bottom: 6px; }
+.device-line { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.device-status { font-size: 12px; }
 .device-status.up { color: #00c853; }
 .device-status.down { color: #ff2d2d; }
+/* Neither up nor down: the app is serving a virtual pad. Steel, the same
+   colour lib/pad.js gives the unknown status, so it reads as "not hardware"
+   rather than as a fault. */
+.device-badge {
+  font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+  color: #90a4ae; border: 1px solid #90a4ae66; border-radius: 999px;
+  padding: 1px 7px; white-space: nowrap;
+}
+.device-status.virtual { color: #90a4ae; }
 .hostname { font-size: 11px; color: var(--muted); margin-bottom: 4px; font-family: "IBM Plex Mono", monospace; }
 
 /* pad mirror */
@@ -260,6 +270,11 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .pad-key .lbl { font-size: 11px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pad-key .state { font-size: 9px; opacity: 0.7; }
 .pad-key.mic { flex: 2; }
+/* On a virtual pad the mirror is the pad, so the keys are real controls. */
+.pad-key.pressable { cursor: pointer; }
+.pad-key.pressable:hover { border-color: var(--focus); }
+.pad-key.pressable:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pad-key.pressed { transform: translateY(1px); box-shadow: inset 0 0 0 2px var(--focus); }
 /* The two physical controls, drawn as circles so they never read as keys. */
 .pad-knob {
   justify-self: center;

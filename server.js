@@ -295,7 +295,8 @@ const server = http.createServer((req, res) => {
       }));
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
-        deviceUp: bridge.deviceUp(), deviceError: bridge.deviceError, pairing: !!bridge.pairing,
+        deviceUp: bridge.deviceUp(), device: bridge.descriptor(),
+        deviceError: bridge.deviceError, pairing: !!bridge.pairing,
         hostname: HOSTNAME,
         config: redactConfig(cfg), assigned,
       }));
@@ -490,6 +491,32 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // A key was pressed on the ON-SCREEN pad. This is a mutating route like any
+  // other, so it has already proved its origin and carried the pairing token
+  // before reaching here (see the gate at the top of the handler). Nothing
+  // about the origin policy is loosened for it.
+  //
+  // Only a virtual pad accepts a press. When the real pad is live, the answer
+  // is to press the real key: reporting a click as a hardware press would put
+  // an event on the wire that the device never sent.
+  if (req.method === "POST" && p === "/api/press") {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => {
+      try {
+        const { key } = JSON.parse(body || "{}");
+        if (!Number.isInteger(key)) throw new Error("key must be a firmware key id");
+        const sent = bridge.press(key);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, key, kind: bridge.deviceKind(), sent }));
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    });
+    return;
+  }
+
   // PAIRING MODE
   // Bluetooth pairing is a firmware behaviour: hold the touch sensor 3s, the
   // underglow turns blue, tap to pick a channel. None of that is visible while
@@ -530,9 +557,12 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ ok: false, error: "a backup already exists; refusing to overwrite the original" }));
         return;
       }
-      if (!bridge.dev) {
+      // The keymap lives in the device flash. A virtual pad has none, so this
+      // needs the real thing: an invented keymap written over keymap-backup.json
+      // would destroy the only route back to stock.
+      if (!bridge.deviceUp()) {
         res.writeHead(503, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: false, error: "device not connected" }));
+        res.end(JSON.stringify({ ok: false, error: bridge.dev ? "the keymap needs the physical pad" : "device not connected" }));
         return;
       }
       try {
@@ -558,9 +588,12 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ ok: false, error: "no keymap-backup.json to restore from" }));
         return;
       }
-      if (!bridge.dev) {
+      // The keymap lives in the device flash. A virtual pad has none, so this
+      // needs the real thing: an invented keymap written over keymap-backup.json
+      // would destroy the only route back to stock.
+      if (!bridge.deviceUp()) {
         res.writeHead(503, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: false, error: "device not connected" }));
+        res.end(JSON.stringify({ ok: false, error: bridge.dev ? "the keymap needs the physical pad" : "device not connected" }));
         return;
       }
       try {
@@ -746,6 +779,7 @@ function config_agentKeyIDs() { return require("./lib/pad").agentKeyIDs; }
 
 server.listen(PORT, () => {
   console.log(`RK MicroPad server on http://localhost:${PORT}`);
-  console.log(`device: ${bridge.deviceUp() ? "connected" : "NOT connected"}`);
-  if (!bridge.deviceUp()) console.log(`  error: ${bridge.deviceError}`);
+  const kind = bridge.deviceKind();
+  console.log(`device: ${kind === "hid" ? "connected" : kind === "virtual" ? "virtual pad (no hardware attached)" : "NOT connected"}`);
+  if (kind !== "hid" && bridge.deviceError) console.log(`  hid: ${bridge.deviceError}`);
 });
