@@ -2,6 +2,10 @@
   "pollIntervalMs": 2500,
   "cmdDir": null,
   "focusBrowserOnTalk": false,
+  "virtualPad": {
+    "enabled": true,
+    "onUnplug": false
+  },
   "analytics": {
     "enabled": false
   },

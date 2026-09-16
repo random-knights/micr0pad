@@ -95,7 +95,10 @@
           <div class="pad-head">
             <div class="pad-head-text">
               <h2>Micropad</h2>
-              <div id="statusLine" class="device-status">connecting...</div>
+              <div class="device-line">
+                <span id="statusLine" class="device-status">connecting...</span>
+                <span id="deviceBadge" class="device-badge" hidden>virtual pad</span>
+              </div>
               <div id="hostname" class="hostname"></div>
             </div>
             <button type="button" class="pad-mark mark-flip" id="creditFlip" title="credits" aria-label="Show credits">

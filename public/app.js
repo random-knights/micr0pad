@@ -2,7 +2,10 @@
 // app.js - RK MicroPad UI: render the pad mirror, live slot table, action keys,
 // light test, slot name/color editor, underglow editor, and debug panel.
 // Polls /api/state and /api/debug.
-const state = { assigned: [], config: null, deviceUp: false, debug: null };
+// deviceKind is "hid" when a real pad is attached, "virtual" when the app is
+// serving the virtual pad, and "none" when there is neither. deviceUp stays
+// what it always meant: a PHYSICAL pad is connected.
+const state = { assigned: [], config: null, deviceUp: false, deviceKind: "none", debug: null };
 // Track the last config JSON so the editors (slot names/colors, underglow) are
 // only rebuilt when the config actually changes. Rebuilding them on every poll
 // destroys an open <select> mid-interaction (the outer-light dropdown could
@@ -309,6 +312,25 @@ function renderPad() {
       (info && info.agent ? `<span class="state">${info.agent.status}</span>` : "");
     if (info && info.agent) keyEl.classList.add("lit-" + info.agent.status);
     else keyEl.classList.add("off");
+    // With a virtual pad the mirror IS the pad: clicking a key presses it.
+    // The press goes through /api/press, which is a mutating route and so
+    // carries the pairing token and is judged by the same origin policy as
+    // everything else. On a real pad the keys stay a mirror: press the pad.
+    if (state.deviceKind === "virtual") {
+      keyEl.classList.add("pressable");
+      keyEl.setAttribute("role", "button");
+      keyEl.setAttribute("tabindex", "0");
+      keyEl.title = `press key ${k}`;
+      const send = async () => {
+        keyEl.classList.add("pressed");
+        setTimeout(() => keyEl.classList.remove("pressed"), 160);
+        const r = await apiPost("/api/press", { key: k });
+        const j = await r.json().catch(() => ({}));
+        if (!j.ok) knobNote(keyEl, j.error || "press refused");
+      };
+      keyEl.onclick = send;
+      keyEl.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); send(); } };
+    }
     return keyEl;
   };
   // Top row: dial | claude 1 | claude 2 | toggle. The dial and the toggle are
@@ -1252,6 +1274,8 @@ async function poll() {
   try {
     const data = await getJSON("/api/state");
     state.deviceUp = data.deviceUp;
+    state.deviceKind = (data.device && data.device.kind) || "none";
+    state.deviceModel = (data.device && data.device.model) || null;
     state.assigned = data.assigned;
     state.config = data.config;
     state.hostname = data.hostname;
@@ -1259,8 +1283,23 @@ async function poll() {
     if (window.setPairButtonState) window.setPairButtonState(state.pairing);
     renderBands();
     const line = document.getElementById("statusLine");
-    line.className = "device-status " + (data.deviceUp ? "up" : "down");
-    line.textContent = data.deviceUp ? "device connected" : `device OFFLINE${data.deviceError ? " - " + data.deviceError : ""}`;
+    // Three states, not two. A virtual pad is neither connected nor offline,
+    // and saying either would be a lie about what the lights are doing.
+    if (state.deviceKind === "hid") {
+      line.className = "device-status up";
+      line.textContent = "device connected";
+    } else if (state.deviceKind === "virtual") {
+      line.className = "device-status virtual";
+      line.textContent = "no pad attached: the keys below are live";
+    } else {
+      line.className = "device-status down";
+      line.textContent = `device OFFLINE${data.deviceError ? " - " + data.deviceError : ""}`;
+    }
+    const badge = document.getElementById("deviceBadge");
+    if (badge) {
+      badge.hidden = state.deviceKind !== "virtual";
+      badge.title = "No Work Louder pad is on the USB bus, so the app is serving a virtual one. Plug a pad in and it takes over.";
+    }
     const hostEl = document.getElementById("hostname");
     if (hostEl) hostEl.textContent = data.hostname ? `host: ${data.hostname}` : "";
     renderPad(); renderSlots(); renderActions(); renderLightTest();

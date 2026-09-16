@@ -7,7 +7,9 @@ real Codex Micro (firmware v0.4.1) rather than taken from documentation.
 
 ```
 server.js            HTTP + JSON API + SSE, serves public/
+lib/device.js        the device interface, and the method-not-found contract
 lib/wldevice.js      raw-HID JSON-RPC transport (vendor interface FF00/01)
+lib/virtualdevice.js the same interface in memory, for when no pad is attached
 lib/bridge.js        poll loop: read agents -> assign slots -> paint the pad
 lib/mapper.js        agent -> slot assignment, and the colour/effect for each
 lib/pad.js           device geometry, status colours, underglow + effect table
@@ -28,6 +30,47 @@ One USB interface exposing five HID collections: keyboard `01/06`, consumer
 `0C/01`, mouse `01/02`, gamepad `01/05` (the joystick), and vendor `FF00/01` -
 the JSON-RPC channel this app speaks. The device filesystem (`fs.list`) holds
 exactly one file, `keymap.json`.
+
+### The method set, and the virtual pad
+
+Everything this app asks the device for, with where each name is used. There is
+no discovery method on this firmware, so this list is the whole known surface:
+
+| method | what it does | virtual pad |
+|---|---|---|
+| `v.oai.thstatus` | per-key thread colours | yes, held in memory |
+| `v.oai.rgbcfg` | the keys and ambient zones | yes, held in memory |
+| `sys.version` | firmware version | yes, answers `virtual` |
+| `fs.read` / `fs.write` | the device flash, one file: `keymap.json` | no, refused |
+| `fs.list` | the device filesystem listing | no, refused |
+| `device.status` | tried by `probe.js`; no recorded response | no, refused |
+| `lights.preview` | full field names and STRING effects; unused | no, refused |
+
+Device to host, as notifications: `v.oai.hid` `{k, act}` for a key (the `k` is
+`AG00` to `AG05` for the status keys, `ACT06` to `ACT12` for the action keys,
+and `AG13` to `AG18` for the dial and the joystick sectors), and `v.oai.rad`
+`{a, d}` for the joystick radial. `lib/bridge.js` accepts the short `hid` and
+`rad` spellings too.
+
+`lib/virtualdevice.js` implements that surface with no hardware. What it will
+not do is answer a method it does not have: an unknown method REJECTS with
+"Method not found" and code -32601, exactly as the firmware does, because a
+stand-in that resolved `{ok:1}` would report success for a call the hardware
+refuses. The two `fs.*` methods are refused on purpose rather than faked: the
+keymap is the only route back to stock, and an invented one written over
+`keymap-backup.json` would destroy it. `server.js` therefore keeps both keymap
+buttons on the physical pad.
+
+One deliberate difference: the firmware accepts any payload and returns
+`{"ok":1}`. The virtual pad refuses a malformed frame with an invalid-params
+error, because a test seam that swallows a bad frame teaches you nothing.
+
+The bridge always prefers hardware. It tries HID on start and on every poll
+while it has no pad; a virtual pad is what it runs in the meantime, and it
+hands over the moment a real pad opens, replaying the colour matrix it was
+holding so the keys light immediately rather than at the next poll. The reverse
+(falling back to a virtual pad when a connected pad is unplugged) is off unless
+`virtualPad.onUnplug` says otherwise.
 
 ### Effects
 
