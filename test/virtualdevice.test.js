@@ -1,7 +1,7 @@
 "use strict";
 // What these tests hold in place: the virtual pad answers exactly the RPC
 // methods this repo proves the firmware answers, refuses everything else with
-// a JSON-RPC error instead of a fake success, keeps the colour matrix the
+// a JSON-RPC error instead of a fake success, keeps the color matrix the
 // mapper paints, emits a key press in the shape the bridge decodes, and needs
 // no timer, no child process and no hardware to do any of it.
 
@@ -36,7 +36,7 @@ test("a later partial frame merges into the key rather than replacing it", async
   await dev.call("v.oai.thstatus", [{ id: 3, b: 0, e: 0 }]);
   const [key3] = dev.snapshot().threads;
   assert.equal(key3.b, 0);
-  assert.equal(key3.color, 0x7c4dff, "the colour it was painted with is still there");
+  assert.equal(key3.color, 0x7c4dff, "the color it was painted with is still there");
 });
 
 test("v.oai.rgbcfg keeps both zones and lets one be written alone", async () => {

@@ -248,7 +248,7 @@ function startSampler() {
 }
 process.on("exit", () => { if (samplerState.child) samplerState.child.kill(); });
 
-// Two short flashes of the blocked colour on the ambient zone, then hand the
+// Two short flashes of the blocked color on the ambient zone, then hand the
 // light back to state via the bridge's own repaint. Never while talk is live
 // (the gold pulse is the owner's cue that dictation is on) or while pairing.
 // Uses the same bridge surface server.js already uses for keymap backup.
@@ -737,7 +737,7 @@ const server = http.createServer((req, res) => {
   }
 
   // PAIRING MODE
-  // Bluetooth pairing is a firmware behaviour: hold the touch sensor 3s, the
+  // Bluetooth pairing is a firmware behavior: hold the touch sensor 3s, the
   // underglow turns blue, tap to pick a channel. None of that is visible while
   // this app repaints the LEDs every 2.5s, so pairing mode stops the loop and
   // hands the lighting back to the device.
