@@ -129,7 +129,7 @@ test("virtualPad.onUnplug brings the virtual pad back, when the owner asks for i
   assert.equal(bridge.deviceKind(), "virtual");
 });
 
-test("virtualPad.enabled false is the pre-virtual-pad behaviour", async () => {
+test("virtualPad.enabled false is the pre-virtual-pad behavior", async () => {
   const { bridge } = bridgeWith([], { virtualPad: { enabled: false } });
   await bridge.refresh();
   assert.equal(bridge.deviceKind(), "none");

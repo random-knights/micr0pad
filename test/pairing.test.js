@@ -3,7 +3,7 @@
 //
 // Two layers, because they fail differently. The unit tests drive
 // lib/pairing.js with a throwaway config object and a fake clock: they are
-// where the code, the expiry and the origin list are pinned. The behaviour
+// where the code, the expiry and the origin list are pinned. The behavior
 // tests boot the real server.js against a throwaway config file and ask it
 // over HTTP: they are where the origin policy is pinned, including the part
 // that matters most, which is what an UNPAIRED origin gets.

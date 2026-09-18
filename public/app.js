@@ -740,7 +740,7 @@ function renderUnderglow() {
   row.className = "slot-edit-row";
   // One control instead of two. "auto" follows the worst agent state and keeps
   // that state's own effect, so a blocked agent breathes the outer light the
-  // same way it breathes its key. "solid" and "gradient" are fixed colour, and
+  // same way it breathes its key. "solid" and "gradient" are fixed color, and
   // differ only in the firmware effect they ask for (1 vs 5).
   const currentMode = ug.mode === "auto" ? "auto" : (Number(ug.effect) === 5 ? "gradient" : "solid");
   const mode = document.createElement("select");
@@ -767,7 +767,7 @@ function renderUnderglow() {
   row.appendChild(color);
   row.appendChild(hex);
   box.appendChild(row);
-  // The colour only means anything when the mode is not auto.
+  // The color only means anything when the mode is not auto.
   const syncColorState = () => {
     const auto = mode.value === "auto";
     color.disabled = auto;
@@ -778,7 +778,7 @@ function renderUnderglow() {
   syncColorState();
   renderUnderglowAnimation();
 
-  // One Save for the section: slot names and colours plus the outer light, in
+  // One Save for the section: slot names and colors plus the outer light, in
   // a single /api/config request, so a half-saved state cannot happen.
   const saveBtn = document.getElementById("saveLights");
   saveBtn.onclick = async () => {
@@ -920,7 +920,7 @@ function renderAiedsTotals(a) {
     `<span title="modeled carbon in kilograms CO2e"><b>${fmtDec((+a.totalCarbonG || 0) / 1000, 1)}</b> kg</span>` +
     `<span title="mature-reference-tree years to offset that carbon"><b>${fmtDec(treeYears, 1)}</b> tree-yrs</span>` +
     (a.totalCostUsd > 0
-      ? `<span title="List-price equivalent, modelled for ${fmtDec(a.pricedRows || 0, 0)} of ${fmtDec(a.rows, 0)} rows. This client is subscription billed - no such sum was charged."><b>${fmt(a.totalCostUsd)}</b> USD est.</span>`
+      ? `<span title="List-price equivalent, modeled for ${fmtDec(a.pricedRows || 0, 0)} of ${fmtDec(a.rows, 0)} rows. This client is subscription billed - no such sum was charged."><b>${fmt(a.totalCostUsd)}</b> USD est.</span>`
       : "");
   box.hidden = false;
 }
@@ -928,7 +928,7 @@ function renderAiedsTotals(a) {
 // 30-day trend, one point per day, drawn as an inline SVG overlay.
 //
 // Cost and runtime come from the SessionEnd hook as of 2026-09-01:
-//   cost    - costUsdModeled, a MODELLED LIST PRICE, not billed spend (this
+//   cost    - costUsdModeled, a MODELED LIST PRICE, not billed spend (this
 //             client is subscription billed). Priced from lib/aieds-rates.json;
 //             a model with no entry there contributes nothing. Older rows are
 //             priced on read from the same table, so the history is complete.

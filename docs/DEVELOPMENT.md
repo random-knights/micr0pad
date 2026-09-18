@@ -11,8 +11,8 @@ lib/device.js        the device interface, and the method-not-found contract
 lib/wldevice.js      raw-HID JSON-RPC transport (vendor interface FF00/01)
 lib/virtualdevice.js the same interface in memory, for when no pad is attached
 lib/bridge.js        poll loop: read agents -> assign slots -> paint the pad
-lib/mapper.js        agent -> slot assignment, and the colour/effect for each
-lib/pad.js           device geometry, status colours, underglow + effect table
+lib/mapper.js        agent -> slot assignment, and the color/effect for each
+lib/pad.js           device geometry, status colors, underglow + effect table
 lib/herdr.js         thin wrapper over the herdr CLI
 lib/aieds.js         reads the local AiEDs log into totals and a 30-day series
 lib/aieds-cost.js    the one cost function (list price, never a bill)
@@ -38,7 +38,7 @@ no discovery method on this firmware, so this list is the whole known surface:
 
 | method | what it does | virtual pad |
 |---|---|---|
-| `v.oai.thstatus` | per-key thread colours | yes, held in memory |
+| `v.oai.thstatus` | per-key thread colors | yes, held in memory |
 | `v.oai.rgbcfg` | the keys and ambient zones | yes, held in memory |
 | `sys.version` | firmware version | yes, answers `virtual` |
 | `fs.read` / `fs.write` | the device flash, one file: `keymap.json` | no, refused |
@@ -67,14 +67,14 @@ error, because a test seam that swallows a bad frame teaches you nothing.
 
 The bridge always prefers hardware. It tries HID on start and on every poll
 while it has no pad; a virtual pad is what it runs in the meantime, and it
-hands over the moment a real pad opens, replaying the colour matrix it was
+hands over the moment a real pad opens, replaying the color matrix it was
 holding so the keys light immediately rather than at the next poll. The reverse
 (falling back to a virtual pad when a connected pad is unplugged) is off unless
 `virtualPad.onUnplug` says otherwise.
 
 ### Effects
 
-`v.oai.rgbcfg` and `v.oai.thstatus` take abbreviated fields - `c` colour (packed
+`v.oai.rgbcfg` and `v.oai.thstatus` take abbreviated fields - `c` color (packed
 int), `b` brightness, `e` effect (a NUMBER), `s` speed, `sk`/`sa` mirror flags.
 The firmware's effect set is:
 
@@ -85,8 +85,8 @@ The firmware's effect set is:
 | 2 | snake | 6 | shallow breath |
 | 3 | rainbow | | |
 
-There is no "spin" or "wave" primitive; snake is the travelling one, rainbow the
-colour-cycling one. `lights.preview` uses full field names and STRING effects -
+There is no "spin" or "wave" primitive; snake is the traveling one, rainbow the
+color-cycling one. `lights.preview` uses full field names and STRING effects -
 mixing the two conventions is a silent no-op.
 
 ### Traps that cost real time
@@ -94,7 +94,7 @@ mixing the two conventions is a silent no-op.
 - **`{"ok":1}` means nothing.** The firmware accepts any payload and reports
   success. Every write in this codebase that matters is followed by a read-back
   comparison (`restore-keymap`, `add-layers`, `/api/keymap/restore`).
-- **Thread colour paints over zone colour.** Per-key threads hide the zones
+- **Thread color paints over zone color.** Per-key threads hide the zones
   underneath, which is why pairing mode clears threads before releasing the
   device, and why turning everything off takes two calls.
 - **Only AG-bound keys on the ACTIVE layer can be lit.** A key that is not bound
@@ -150,7 +150,7 @@ reported. Three decisions worth keeping:
   `<transcript-dir>/<session-id>/subagents/agent-*.jsonl` and can run a
   different model. They burn real energy, so they are counted.
 
-**Cost is a modelled list price, never a bill.** This client is subscription
+**Cost is a modeled list price, never a bill.** This client is subscription
 billed. `lib/aieds-cost.js` prices plain input, cache writes (~1.25x) and cache
 reads (~0.1x) separately - pricing the combined `tokensIn` at the plain rate
 would overstate a cache-heavy client by roughly 8x. A model with no entry in

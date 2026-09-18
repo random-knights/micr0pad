@@ -225,7 +225,7 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .device-status.up { color: #00c853; }
 .device-status.down { color: #ff2d2d; }
 /* Neither up nor down: the app is serving a virtual pad. Steel, the same
-   colour lib/pad.js gives the unknown status, so it reads as "not hardware"
+   color lib/pad.js gives the unknown status, so it reads as "not hardware"
    rather than as a fault. */
 .device-badge {
   font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
@@ -237,7 +237,7 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 
 /* pad mirror */
 /* The pad tile is the hero: give the mirror room to breathe. The Light tile
-   is the only shrinkable neighbour, so this height comes out of its slot list,
+   is the only shrinkable neighbor, so this height comes out of its slot list,
    which scrolls. */
 .pad { display: flex; flex-direction: column; gap: 8px; align-items: center; padding: 6px 0; }
 .pad > * { width: 100%; max-width: 337px; }
@@ -865,7 +865,7 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Centre column: the install command, click to copy. */
+/* Center column: the install command, click to copy. */
 #herdrPanel .install-list { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
 #herdrPanel .p-cmd { padding: 4px 9px; text-align: center; }
 .install-list .p-cmd {

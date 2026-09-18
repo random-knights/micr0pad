@@ -125,8 +125,8 @@ If port 4120 is taken, set `RK_MICROPAD_PORT` to something else before starting.
 
 ## <span style="color:#555555"><u> **WHAT IT DOES** </u></span>
 
-- **A key per agent.** Six of them. Each one takes the colour of its agent's
-  state, and each slot keeps its own identity colour, so two Claudes are still
+- **A key per agent.** Six of them. Each one takes the color of its agent's
+  state, and each slot keeps its own identity color, so two Claudes are still
   two different keys.
 - **A mirror in the browser** at `http://localhost:4120`. Every key, the dial
   and the joystick, following the real device as you touch it.
@@ -139,7 +139,7 @@ If port 4120 is taken, set `RK_MICROPAD_PORT` to something else before starting.
   and the strip pulses gold while it is listening. Speech recognition is the
   browser's, so the tab has to be in front; press talk while you are working
   elsewhere and the app tells you that rather than going quiet.
-- **Lights you can edit.** Slot names, colours and the outer light, saved to
+- **Lights you can edit.** Slot names, colors and the outer light, saved to
   `config.json`. Eight choices in the effect list: follow the agent state, or
   pick one of the seven the firmware has (solid, pulse, soft pulse, spin,
   rainbow, gradient, off).
@@ -163,7 +163,7 @@ pretending they worked. The two things it cannot do are the two that live in the
 device flash: it has no keymap to back up and none to restore, so those buttons
 wait for real hardware.
 
-Plug a pad in at any point and it takes over on the next poll, with the colours
+Plug a pad in at any point and it takes over on the next poll, with the colors
 it was already showing painted straight onto the keys. Unplug one and the app
 says the pad is gone rather than slipping back to a virtual one behind your
 back; set `virtualPad.onUnplug` to `true` in `config.json` if you would rather
@@ -202,7 +202,7 @@ copy of this server is usually still running.
 ## <span style="color:#555555"><u> **CONFIGURE** </u></span>
 
 Everything you change in the browser is saved to `config.json`, which is created
-for you on the first run and is never committed. Slot matching, colours, action
+for you on the first run and is never committed. Slot matching, colors, action
 commands, the outer light and the pairing token all live there.
 `config.example.json` is the same shape, checked in, to read or copy from.
 
@@ -237,7 +237,7 @@ sampling starts the window over.
 | `hungChrome` | a `chrome.exe` with no CPU at all for 180 s while holding 800 MB or more | a parked renderer keeps its memory and does nothing; an idle background tab sits well under 800 MB |
 | `orphanDev` | a `dart.exe`, `dartvm.exe` or `java.exe` whose parent is gone, or is not an editor, toolchain or shell, for 300 s | analysis servers and Gradle daemons are what editors leave behind. A Gradle daemon detaches from its launcher by design, so it will show here after five minutes; that is the point, snooze it or end it |
 
-**What happens.** The pad's outer light flashes the blocked colour twice and
+**What happens.** The pad's outer light flashes the blocked color twice and
 goes back to showing agent state (it stays out of the way while talk is on).
 A banner in the System panel names the rule and the process, with an `end`
 button and a `snooze 30 min` button per rule. Every alert and every `end` is
@@ -319,7 +319,7 @@ What each piece is doing:
 - **The list of sites that may even ask is fixed.** `hostedOrigins` in
   `config.json`, shipping as `https://rand0m.ai` and
   `https://abc-rand0m-ai.web.app`. It is never a wildcard: an entry that is not
-  a plain `https://` origin is dropped rather than honoured.
+  a plain `https://` origin is dropped rather than honored.
 
 **What a paired page can do:** everything the local dashboard can, with three
 exceptions. It reads pad and agent state, system metrics and the process table,
@@ -351,7 +351,7 @@ app's own, for the unpaired attempt.
 
 ## <span style="color:#555555"><u> **ENERGY REPORTING (OPTIONAL)** </u></span>
 
-The system panel can show modelled energy, carbon and cost for your own agent
+The system panel can show modeled energy, carbon and cost for your own agent
 sessions, using the
 [AI Energy Disclosure Standard](https://randomknights.xyz/aieds) v2.0.0. A fresh
 install shows an empty panel and records nothing. It starts only when you add
@@ -375,7 +375,7 @@ reported, and appends one line per model to `aieds-local.jsonl` beside the app.
 Set `AIEDS_LOG_PATH` to put it somewhere else, and give the server the same
 value so both ends read the same file.
 
-Cost is a **modelled list price, not a bill.** Rates live in
+Cost is a **modeled list price, not a bill.** Rates live in
 `lib/aieds-rates.json`, and a model that is not in that file gets no cost figure
 rather than a guessed one. In AiEDs v2 energy, carbon and tree time are fixed
 multiples of each other, which is why those three lines sit on top of one
@@ -412,7 +412,7 @@ Nothing is sent anywhere. There is nowhere to send it: the app has no analytics
 endpoint and opens no connection for one. The file is yours, it is ignored by
 git, and deleting it undoes everything it ever recorded.
 
-Energy in watt hours is not modelled here. AiEDs v2 models energy from AI token
+Energy in watt hours is not modeled here. AiEDs v2 models energy from AI token
 counts, and there is no sourced figure for what this device draws, so the log
 carries the measurements and says the energy number is unavailable rather than
 printing a guess with a unit on it.
