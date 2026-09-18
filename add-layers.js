@@ -13,7 +13,7 @@
  * Every new layer is a byte-copy of the active layer's layout, so the pad keeps
  * working identically whichever layer is selected: the six agent keys stay
  * AG-bound (only AG-bound keys can be lit), the action keys stay mapped, and
- * the dial and joystick keep their AG13-18 bindings. Only id, name and colour
+ * the dial and joystick keep their AG13-18 bindings. Only id, name and color
  * differ. Edit the layouts afterwards in Work Louder's Input app if you want
  * the layers to actually differ.
  *
