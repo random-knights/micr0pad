@@ -13,7 +13,7 @@ const { open } = require("./lib/wldevice");
 
 const BACKUP = path.join(__dirname, "keymap-backup.json");
 
-// Sector centre -> direction, per the reference hacking.md table.
+// Sector center -> direction, per the reference hacking.md table.
 // 0.000 east, 0.125 NE, 0.250 north, 0.375 NW, 0.500 west,
 // 0.625 SW, 0.750 south, 0.875 SE.
 const CARDINALS = {

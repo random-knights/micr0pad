@@ -41,7 +41,7 @@ function main() {
   console.log(`pad on:    ${format(totals.deviceConnectedMs)}`);
   console.log(`repaints:  ${totals.padRepaints}`);
   console.log(`cpu time:  ${format(totals.hostCpuMs)}`);
-  console.log("energy:    not modelled, no sourced power figure for this device");
+  console.log("energy:    not modeled, no sourced power figure for this device");
 }
 
 if (require.main === module) main();
