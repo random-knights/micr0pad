@@ -556,6 +556,8 @@ published because it is what this project offsets against.
 
 **Trees needed: 3.** 48.8 kg CO₂e divided by 21 kg CO₂e, the yearly capture of one mature tree, rounded up: 3 mature trees would absorb this carbon within one year. Put the other way round, that is the Tree-Time above: one mature tree working for 848 days, about 2.3 years.
 
+**Offset cost: USD 0.29.** 0.0 tonnes of CO₂e at USD 6.03 per tonne, the REDD+ (Reduced Emissions from Deforestation and Degradation in Developing Countries) average, 2024, <a href="https://www.ecosystemmarketplace.com/publications/2025-state-of-the-voluntary-carbon-market-sovcm/">Ecosystem Marketplace, State of the Voluntary Carbon Market 2025, Table 4</a>. That is a nature-based avoidance and protection, not removals average: this project prices itself against keeping land, animals and trees standing, never against carbon removals or industrial and household offsets. Buying an offset is not the same as not spending the energy, and this line does not claim otherwise.
+
 </details>
 
 <sub>
@@ -568,7 +570,7 @@ by <a href="https://standard.rand0m.ai">Random Knights, LLC</a> (ORCID 0009-0006
 Energy and carbon are modeled estimates. Tree-Time and equivalents are educational comparisons.
 </sub>
 
-<sub>Measured by a <code>SessionEnd</code> hook on one developer machine; a second machine's ledger is not yet merged in, over 293 recorded sessions covering 2026-07-27 to 2026-09-13, which is every session the hook recorded and no session it did not. Two attribution bases are published: BY LANE LEDGER in the table above, and BY WORKING DIRECTORY, the stricter view, in <code>aieds-readme.json</code>. The organisation totals are the same under both. Generated, never hand-typed.</sub>
+<sub>Measured by a <code>SessionEnd</code> hook on one developer machine; a second machine's ledger is not yet merged in, over 293 recorded sessions covering 2026-07-27 to 2026-09-13, which is every session the hook recorded and no session it did not. Two attribution bases are published: BY LANE LEDGER in the table above, and BY WORKING DIRECTORY, the stricter view, in <code>aieds-readme.json</code>. The organization totals are the same under both. Both bases are DATE AWARE: the application repository was named <code>xyz</code> until 2026-08-19 and is named <code>ruok</code> now, so a row written before that day is placed on the repository the name meant then. Any offset figure is a nature-based average, not removals. Generated, never hand-typed.</sub>
 
 </div>
 
