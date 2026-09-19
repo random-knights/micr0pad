@@ -125,6 +125,19 @@ test("the hosted origin list is never a wildcard", () => {
   assert.deepEqual(Pairing.normalizeHostedOrigins(undefined), DEFAULT_HOSTED_ORIGINS);
 });
 
+test("the staging host the owner reviews on may attempt a pairing", () => {
+  // stg.rand0m.ai is a separate Origin from abc-rand0m-ai.web.app even though
+  // Hosting serves the same site, so it has to be listed by name.
+  const { p } = freshPairing();
+  assert.equal(p.mayAttemptPairing("https://stg.rand0m.ai"), true);
+  const code = p.start(1000).code;
+  const paired = p.complete(code, "https://stg.rand0m.ai", "staging", 1100);
+  assert.equal(paired.ok, true);
+  assert.equal(p.match("https://stg.rand0m.ai", paired.token).origin, "https://stg.rand0m.ai");
+  // and still nothing else gets in.
+  assert.equal(p.mayAttemptPairing("https://stg.rand0m.ai.evil.test"), false);
+});
+
 test("revoke removes exactly one pairing and persists", () => {
   const { cfg, p, writes } = freshPairing();
   const a = p.complete(p.start(1000).code, HOSTED, "a", 1100);

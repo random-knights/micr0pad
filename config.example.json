@@ -8,6 +8,7 @@
   },
   "hostedOrigins": [
     "https://rand0m.ai",
+    "https://stg.rand0m.ai",
     "https://abc-rand0m-ai.web.app"
   ],
   "pairings": [],
