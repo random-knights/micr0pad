@@ -1,0 +1,55 @@
+{
+  "$comment": "The pad's key map, as data. This file is the ONE place the hosted 1aunchpad and this app agree on what the pad looks like. It is vendored byte for byte into the hosted app at assets/launchpad/micr0pad_keymap.json, and test/padmap.test.js pins its sha256 so an edit here fails loudly until the copy is refreshed. Everything in it was read out of lib/pad.js and public/app.js; nothing is invented.",
+  "source": "random-knights/micr0pad lib/padmap.json",
+  "model": "Work Louder Creator Micro 2 (Codex Micro)",
+  "displayRows": [
+    [1, 0],
+    [2, 3, 4, 5],
+    [6, 7, 8, 9],
+    [10, 11, 12]
+  ],
+  "wideKeys": [10, 11],
+  "knobs": [
+    { "id": "dial", "label": "dial", "keys": [13, 14] },
+    { "id": "toggle", "label": "joy", "keys": [15, 16, 17, 18] }
+  ],
+  "agentKeyIDs": [0, 1, 2, 3, 4, 5],
+  "actionKeyIDs": {
+    "bolt": 6,
+    "check": 7,
+    "x": 8,
+    "fork": 9,
+    "talk": [10, 11],
+    "terminal": 12
+  },
+  "keyNames": {
+    "0": "claude 1",
+    "1": "claude 2",
+    "2": "codex",
+    "3": "gemini",
+    "4": "grok",
+    "5": "huggingface",
+    "6": "bolt",
+    "7": "check",
+    "8": "x",
+    "9": "fork",
+    "10": "talk",
+    "11": "talk",
+    "12": "cmd"
+  },
+  "slots": [
+    { "slot": 0, "name": "claude 1", "keyID": 0, "color": "#ff4124" },
+    { "slot": 1, "name": "claude 2", "keyID": 1, "color": "#7c4dff" },
+    { "slot": 2, "name": "codex", "keyID": 2, "color": "#00b0ff" },
+    { "slot": 3, "name": "gemini", "keyID": 3, "color": "#00c853" },
+    { "slot": 4, "name": "grok", "keyID": 4, "color": "#ffa000" },
+    { "slot": 5, "name": "huggingface", "keyID": 5, "color": "#90a4ae" }
+  ],
+  "statusColors": {
+    "blocked": { "color": "#ff2d2d", "label": "Blocked" },
+    "working": { "color": "#7c4dff", "label": "Working" },
+    "done": { "color": "#00b0ff", "label": "Done" },
+    "idle": { "color": "#ffd400", "label": "Idle" },
+    "unknown": { "color": "#90a4ae", "label": "Unknown" }
+  }
+}

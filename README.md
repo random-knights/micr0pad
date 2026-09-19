@@ -88,6 +88,15 @@ npm start
 `config.json` from the checked-in example on the first run, and then starts the
 server. Open **http://localhost:4120**.
 
+As one line, which is what the hosted 1aunchpad shows you to copy:
+
+```powershell
+git clone https://github.com/random-knights/micr0pad; cd micr0pad; npm start
+```
+
+There is **no published npm package yet**, so `npx` cannot install this. A
+checkout is the whole install today; a published package comes later.
+
 You need Node 18 or newer. If yours is older the app says so, with your version
 number, instead of failing later somewhere confusing.
 
@@ -317,9 +326,12 @@ What each piece is doing:
   to every request and a page cannot forge it, so a token lifted from one site
   does not work from another.
 - **The list of sites that may even ask is fixed.** `hostedOrigins` in
-  `config.json`, shipping as `https://rand0m.ai` and
+  `config.json`, shipping as `https://rand0m.ai`, `https://stg.rand0m.ai` and
   `https://abc-rand0m-ai.web.app`. It is never a wildcard: an entry that is not
-  a plain `https://` origin is dropped rather than honored.
+  a plain `https://` origin is dropped rather than honored. A `config.json`
+  written before `https://stg.rand0m.ai` was added keeps its own shorter list,
+  because a user's explicit list is never widened behind their back: add the
+  line by hand if you want to pair from the staging page.
 
 **What a paired page can do:** everything the local dashboard can, with three
 exceptions. It reads pad and agent state, system metrics and the process table,

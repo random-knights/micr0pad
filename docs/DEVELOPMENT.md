@@ -13,6 +13,7 @@ lib/virtualdevice.js the same interface in memory, for when no pad is attached
 lib/bridge.js        poll loop: read agents -> assign slots -> paint the pad
 lib/mapper.js        agent -> slot assignment, and the color/effect for each
 lib/pad.js           device geometry, status colors, underglow + effect table
+lib/padmap.json      the same geometry as DATA, vendored into the hosted app
 lib/herdr.js         thin wrapper over the herdr CLI
 lib/aieds.js         reads the local AiEDs log into totals and a 30-day series
 lib/aieds-cost.js    the one cost function (list price, never a bill)
@@ -226,3 +227,45 @@ cannot focus itself.
   controls; re-enabling is deleting the `disabled` block in `makeKnob`.
 - `avg runtime` and `cost` chips stay dark until sessions end with timing and a
   priced model, and say so in their tooltips rather than showing zeros.
+
+## The key map as data, and the hosted copy of it
+
+`lib/pad.js` is what this app draws from, and it is JavaScript: the hosted
+1aunchpad app is Dart and cannot require it. So the same
+geometry also exists as `lib/padmap.json` - the display rows, the knob keys,
+the key names, the six default slots with their colors, and the five status
+colors - and the hosted page renders its virtual pad from a byte-identical
+copy at `assets/launchpad/micr0pad_keymap.json` in that app.
+
+Two copies of one fact is the drift condition, so both ends are pinned:
+
+- `test/padmap.test.js` here compares `padmap.json` against the real
+  `lib/pad.js` exports and against the `KEY_NAMES` literal in `public/app.js`,
+  so a change to the local pad that is not carried into the JSON fails.
+- the same test pins the file's sha256, and the hosted app's own
+  `test/launchpad/pad_keymap_test.dart` pins the same digest over its copy. Editing `padmap.json`
+  therefore fails here until the copy is refreshed and both digests updated.
+
+The digest is taken over the file with CRLF normalized to LF, so a Windows
+checkout and a Linux CI runner agree.
+
+To change the key map: edit `lib/pad.js` (and `public/app.js` if a label
+moves), mirror it into `lib/padmap.json`, run `npm test` to get the new digest
+out of the failure message, put that digest in `test/padmap.test.js` here and
+in the hosted app's `test/launchpad/pad_keymap_test.dart`, and copy the file
+across.
+
+## Pairing a hosted page: the command people actually need
+
+The pair box on the hosted page asks for an eight-character code, and the code
+only exists once this bridge is running on the same machine. The command that
+gets there from nothing is a checkout, not an `npx`:
+
+```powershell
+git clone https://github.com/random-knights/micr0pad; cd micr0pad; npm start
+```
+
+Then press **show pairing code** in the Hosted Pages box on
+http://localhost:4120 and type those eight characters into the hosted page.
+`@random-knights/bridge` is NOT on the npm registry and nothing here publishes
+it; whether to publish is the owner's call.
