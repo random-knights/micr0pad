@@ -7,7 +7,7 @@ const path = require("path");
 const { open } = require("./lib/wldevice");
 
 (async () => {
-  const backupFile = process.argv[2] || path.join(__dirname, "keymap-backup.json");
+  const backupFile = process.argv[2] || require("./lib/paths").keymapBackupPath();
   if (!fs.existsSync(backupFile)) { console.error("backup not found:", backupFile); process.exit(1); }
   const raw = JSON.parse(fs.readFileSync(backupFile, "utf8"));
   if (!raw.data) { console.error("backup has no .data string; wrong file?"); process.exit(1); }

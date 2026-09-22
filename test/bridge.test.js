@@ -169,7 +169,7 @@ test("the real config ships the virtual pad on, and the fallback off", () => {
   assert.deepEqual(d.virtualPad, { enabled: true, onUnplug: false });
 });
 
-// --- RK-43: handover edge cases not covered by RK-42's happy-path tests. ---
+// --- handover edge cases not covered by the happy-path tests above. ---
 
 test("handover(): connect() still fails mid-poll and the SAME virtual pad is kept, not replaced", async () => {
   const { bridge } = bridgeWith([]);

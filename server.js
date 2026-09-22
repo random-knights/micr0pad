@@ -7,6 +7,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { execFile, spawn } = require("child_process");
 const config = require("./lib/config");
+const paths = require("./lib/paths");
 const { Pairing } = require("./lib/pairing");
 const { MicropadBridge } = require("./lib/bridge");
 
@@ -210,7 +211,9 @@ async function sysSnapshot() {
 // kill allowlist the second). Line format: see parseSample in lib/watch.js.
 const watchLib = require("./lib/watch");
 const watch = new watchLib.Watch(cfg.watch);
-const WATCH_LOG = path.join(__dirname, "watch.log");
+// Beside config.json in the per-user directory (lib/paths.js), so an npx
+// upgrade does not start the alert history over.
+const WATCH_LOG = path.join(paths.dataDir(), "watch.log");
 const samplerState = { child: null, prev: {}, lastLineAt: 0, restarts: 0 };
 const SAMPLER_PS = [
   `$pp=${process.pid}; $iv=${watch.cfg.sampleMs}; $k=0; $meta=@{}`,
@@ -226,7 +229,7 @@ const SAMPLER_PS = [
 
 function watchLog(entry) {
   // Process name, pid, rule, time, who. Never a title, a user or a path.
-  try { fs.appendFileSync(WATCH_LOG, JSON.stringify(Object.assign({ t: new Date().toISOString() }, entry)) + "\n"); } catch (_) {}
+  try { paths.ensureDir(path.dirname(WATCH_LOG)); fs.appendFileSync(WATCH_LOG, JSON.stringify(Object.assign({ t: new Date().toISOString() }, entry)) + "\n"); } catch (_) {}
 }
 
 function onSamplerLine(line) {
@@ -615,7 +618,7 @@ const server = http.createServer((req, res) => {
     // Does a keymap backup exist, and from when? Drives which of the two
     // device buttons the UI shows.
     if (p === "/api/keymap/backup-info") {
-      const file = require("path").join(__dirname, "keymap-backup.json");
+      const file = paths.keymapBackupPath();
       let info = { exists: false };
       try {
         const stat = fs.statSync(file);
@@ -827,7 +830,7 @@ const server = http.createServer((req, res) => {
     let body = "";
     req.on("data", (c) => { body += c; });
     req.on("end", async () => {
-      const file = require("path").join(__dirname, "keymap-backup.json");
+      const file = paths.keymapBackupPath();
       let force = false;
       try { force = !!JSON.parse(body || "{}").force; } catch (_) {}
       if (fs.existsSync(file) && !force) {
@@ -845,7 +848,7 @@ const server = http.createServer((req, res) => {
       }
       try {
         const raw = await bridge.dev.call("fs.read", { file: "keymap.json" });
-        fs.writeFileSync(file, JSON.stringify(raw, null, 2), "utf8");
+        paths.writePrivate(file, JSON.stringify(raw, null, 2));
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, bytes: (raw.data || "").length }));
       } catch (e) {
@@ -860,7 +863,7 @@ const server = http.createServer((req, res) => {
     let body = "";
     req.on("data", (c) => { body += c; });
     req.on("end", async () => {
-      const file = require("path").join(__dirname, "keymap-backup.json");
+      const file = paths.keymapBackupPath();
       if (!fs.existsSync(file)) {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: "no keymap-backup.json to restore from" }));

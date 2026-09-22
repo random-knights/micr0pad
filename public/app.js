@@ -1038,7 +1038,7 @@ function drawAiedsChart() {
     svg.hidden = true;
     const range0 = document.getElementById("aiedsRange");
     if (range0) range0.textContent = n === 0
-      ? "no AiEDs log found yet: the trend fills in as sessions end (AIEDS_LOG_PATH, or aieds-local.jsonl beside the app)"
+      ? "no AiEDs log found yet: the trend fills in as sessions end (AIEDS_LOG_PATH, or aieds-local.jsonl in the micr0pad settings folder beside config.json)"
       : "one day of activity so far; the trend needs two";
     row.hidden = false;
     return;
@@ -1349,7 +1349,7 @@ function connectEvents() {
 }
 connectEvents();
 
-// HOSTED PAIRING (RK-44)
+// HOSTED PAIRING
 //
 // The local page is the only place a pairing can START. It asks the bridge
 // for a code, shows it, and the owner carries it to the hosted page by hand.

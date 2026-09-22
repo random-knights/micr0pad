@@ -23,7 +23,9 @@ const { spawn } = require("child_process");
 const { Pairing, DEFAULT_HOSTED_ORIGINS } = require("../lib/pairing");
 
 const ROOT = path.join(__dirname, "..");
-const HOSTED = "https://stg.rand0m.ai";
+const HOSTED = "https://rand0m.ai";
+// A host a developer adds to their own config.json; not in the defaults.
+const STAGING = "https://staging.example";
 const EVIL = "https://evil.example";
 
 // ---------------------------------------------------------------------------
@@ -52,14 +54,14 @@ test("status says paired only for the right origin with the right token", () => 
 test("a refusal names the fix", () => {
   const cfg = { pairings: [], hostedOrigins: ["https://rand0m.ai"] };
   const p = new Pairing(cfg);
-  assert.equal(p.refusalReason(HOSTED, false), "origin is not in hostedOrigins",
-    "an older config.json whose list predates the staging host");
+  assert.equal(p.refusalReason(STAGING, false), "origin is not in hostedOrigins",
+    "a staging host nobody added to config.json");
   assert.equal(p.refusalReason("https://rand0m.ai", false), "origin is allowed but this page has not paired");
   assert.match(p.refusalReason("https://rand0m.ai", true), /does not match/);
 });
 
-test("the defaults still list the staging host and never a wildcard", () => {
-  assert.ok(DEFAULT_HOSTED_ORIGINS.includes(HOSTED));
+test("the defaults list the production site only and never a wildcard", () => {
+  assert.deepEqual(DEFAULT_HOSTED_ORIGINS, [HOSTED]);
   assert.equal(DEFAULT_HOSTED_ORIGINS.some((o) => o.includes("*")), false);
 });
 
@@ -95,6 +97,7 @@ function startServer(port, configPath) {
         RK_MICROPAD_PORT: String(port),
         RK_MICROPAD_NO_DEVICE: "1",
         RK_MICROPAD_CONFIG: configPath,
+        RK_MICROPAD_DATA_DIR: path.dirname(configPath),
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -150,7 +153,7 @@ test(
     const json = { "Content-Type": "application/json" };
 
     // One startup line with the allowed origins.
-    assert.match(log.text, /hosted origins allowed to pair: https:\/\/rand0m\.ai, https:\/\/stg\.rand0m\.ai, https:\/\/abc-rand0m-ai\.web\.app/);
+    assert.match(log.text, /hosted origins allowed to pair: https:\/\/rand0m\.ai\r?\n/);
 
     // A listed origin, unpaired: readable, and it says unpaired.
     const cold = await call(port, "/api/pair/status", { headers: { Origin: HOSTED } });
@@ -172,7 +175,7 @@ test(
     // with the other reason.
     assert.equal((await call(port, "/api/state", { headers: { Origin: HOSTED } })).code, 403);
     await settle();
-    assert.match(log.text, /refused hosted request: GET \/api\/state from https:\/\/stg\.rand0m\.ai: origin is allowed but this page has not paired/);
+    assert.match(log.text, /refused hosted request: GET \/api\/state from https:\/\/rand0m\.ai: origin is allowed but this page has not paired/);
 
     // The preflight for the probe, with the Authorization header a paired
     // page sends, and the old Private Network Access header answered for an
@@ -232,7 +235,7 @@ test(
     // A paired page asking for a local-only route is refused and logged.
     assert.equal((await call(port, "/api/pairing-token", { headers: { Origin: HOSTED, ...bearer } })).code, 403);
     await settle();
-    assert.match(log.text, /refused hosted request: GET \/api\/pairing-token from https:\/\/stg\.rand0m\.ai: this route is local/);
+    assert.match(log.text, /refused hosted request: GET \/api\/pairing-token from https:\/\/rand0m\.ai: this route is local/);
 
     // The local page may read the probe too.
     const local = await call(port, "/api/pair/status", { headers: { Origin: own } });

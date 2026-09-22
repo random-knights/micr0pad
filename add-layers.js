@@ -32,7 +32,9 @@ const fs = require("fs");
 const path = require("path");
 const { open } = require("./lib/wldevice");
 
-const BACKUP = path.join(__dirname, "keymap-backup.json");
+// The per-user directory (lib/paths.js), shared with the server, so a backup
+// taken here is the one the page reverts from.
+const BACKUP = require("./lib/paths").keymapBackupPath();
 const LAYER_COLORS = ["#ff4124", "#00b0ff", "#00c853", "#e8bf03", "#7c4dff", "#90a4ae"];
 
 (async () => {
