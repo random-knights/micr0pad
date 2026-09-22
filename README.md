@@ -99,6 +99,9 @@ from a checkout (`npm run backup-keymap`, below).
 On Linux, reading the pad needs `libudev` (present on nearly every desktop
 distribution) and permission to open the device's `hidraw` node.
 
+If `node-hid` ever refuses to load, the app prints the reason on its console
+and serves the virtual pad; in a checkout, `npm rebuild node-hid` rebuilds it.
+
 ### From a checkout (contributors, and the flash scripts)
 
 ```powershell
@@ -197,6 +200,10 @@ says the pad is gone rather than slipping back to a virtual one behind your
 back; set `virtualPad.onUnplug` to `true` in `config.json` if you would rather
 it did fall back, and `virtualPad.enabled` to `false` to turn the whole thing
 off.
+
+To start the server without touching the USB bus at all (no pad, no virtual
+pad), set `RK_MICROPAD_NO_DEVICE=1`. That is for tests, and for a second copy
+of the app while another one already holds the pad: only one process can.
 
 ### The pad
 
@@ -464,7 +471,9 @@ There is no build step. `public/` is served exactly as it is written.
 
 CI runs the same `npm test` on every pull request. It installs without building
 the native module, because nothing under test opens a device and the runner has
-no pad plugged into it. Anything that needs real hardware is checked by hand
+no pad plugged into it. It also checks the npm tarball's file list and
+installs the packed tarball into an empty folder to start it with
+`RK_MICROPAD_NO_DEVICE=1`. Anything that needs real hardware is checked by hand
 against a real pad, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) says which
 parts those are.
 
