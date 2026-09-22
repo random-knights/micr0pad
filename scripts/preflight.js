@@ -53,7 +53,16 @@ function runNpm(args, dir) {
   return spawnSync("npm", args, { cwd: dir, stdio: "inherit", shell: true });
 }
 
+// Installed from the registry (npx, or npm install), this directory sits
+// inside a node_modules folder and npm has already put the dependencies
+// beside it, so there is no node_modules of its own. Installing again there
+// would run npm inside npm's cache. Only a checkout installs its own.
+function isInstalledPackage(dir = APP_DIR) {
+  return path.resolve(dir).split(path.sep).includes("node_modules");
+}
+
 function installDependencies(dir = APP_DIR) {
+  if (isInstalledPackage(dir)) return true;
   if (fs.existsSync(path.join(dir, "node_modules"))) return true;
   // node-hid is a native module. npm fetches a prebuilt binary for the common
   // platforms and falls back to compiling, which is why this can take a
@@ -95,4 +104,4 @@ function main(dir = APP_DIR) {
 
 if (require.main === module) main();
 
-module.exports = { checkNode, installDependencies, ensureConfig, main, APP_DIR, MIN_NODE_MAJOR };
+module.exports = { checkNode, isInstalledPackage, installDependencies, ensureConfig, main, APP_DIR, MIN_NODE_MAJOR };

@@ -1,0 +1,77 @@
+name: Publish to npm
+
+# Publishes @randomknights/micr0pad with npm trusted publishing: GitHub mints a
+# short-lived OIDC identity for this run and npm accepts it in place of a
+# token. There is NO npm token secret in this repo and there must never be
+# one.
+#
+# DISABLED until the owner links it. Trusted publishing can only be set up for
+# a package that already exists on npmjs.com, so the first version is
+# published by hand, then the package is linked to this workflow on
+# npmjs.com (Settings, Trusted Publisher, GitHub Actions: organization
+# random-knights, repository micr0pad, workflow file publish.yml), and only
+# then is the repository variable NPM_TRUSTED_PUBLISHING set to "linked".
+# Until that variable says so, the first step fails and nothing is published.
+#
+# Manual dispatch only. A merge to main does not publish.
+#
+# Provenance: npm only accepts provenance from a PUBLIC source repository.
+# While this repository is private the run publishes without it; once the
+# repository is public the same run adds --provenance.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Refuse unless trusted publishing is linked
+        env:
+          LINKED: ${{ vars.NPM_TRUSTED_PUBLISHING }}
+        run: |
+          if [ "$LINKED" != "linked" ]; then
+            echo "::error::Trusted publishing is not linked yet. Link the package on npmjs.com, then set the repository variable NPM_TRUSTED_PUBLISHING to linked."
+            exit 1
+          fi
+
+      - name: Refuse anything but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Publish only from main (this run is on ${{ github.ref }})."
+          exit 1
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Trusted publishing needs npm 11.5.1 or newer and Node 22.14 or newer.
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Use npm 11
+        run: npm install -g npm@11.19.1
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run the test suite
+        run: npm test
+
+      - name: Check the npm tarball
+        run: npm run check-pack
+
+      - name: Publish
+        env:
+          PROVENANCE: ${{ github.event.repository.private && '' || '--provenance' }}
+        run: npm publish --access public $PROVENANCE

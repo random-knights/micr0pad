@@ -1,9 +1,53 @@
 {
-  "name": "micr0pad",
+  "name": "@randomknights/micr0pad",
   "version": "0.1.0",
   "description": "Live AI-agent status lights on a Work Louder Codex Micro or Creator Micro 2: per-key RGB driven by Herdr agent state, a browser mirror, voice-to-text and AiEDs energy estimates. Node, raw HID, no vendor app.",
+  "keywords": [
+    "macropad",
+    "work-louder",
+    "codex-micro",
+    "creator-micro-2",
+    "hid",
+    "rgb",
+    "ai-agents",
+    "herdr",
+    "status-lights",
+    "claude-code"
+  ],
+  "homepage": "https://github.com/random-knights/micr0pad#readme",
+  "bugs": {
+    "url": "https://github.com/random-knights/micr0pad/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/random-knights/micr0pad.git"
+  },
+  "license": "Apache-2.0",
+  "author": "Random Knights, LLC",
   "type": "commonjs",
   "main": "server.js",
+  "bin": {
+    "micr0pad": "bin/micr0pad.js"
+  },
+  "files": [
+    "bin/",
+    "docs/",
+    "hooks/",
+    "lib/",
+    "public/",
+    "scripts/preflight.js",
+    "scripts/analytics-report.js",
+    "config.example.json",
+    "run.cmd",
+    "server.js",
+    "add-layers.js",
+    "backup-keymap.js",
+    "bind-dial-joy.js",
+    "lights-off.js",
+    "probe.js",
+    "restore-keymap.js",
+    "NOTICE"
+  ],
   "scripts": {
     "prestart": "node scripts/preflight.js",
     "start": "node server.js",
@@ -14,38 +58,17 @@
     "restore-keymap": "node restore-keymap.js",
     "add-layers": "node add-layers.js",
     "bind-dial-joy": "node bind-dial-joy.js",
-    "lights-off": "node lights-off.js"
+    "lights-off": "node lights-off.js",
+    "check-pack": "node scripts/check-pack.js",
+    "prepublishOnly": "node scripts/check-pack.js"
   },
-  "dependencies": {
+  "optionalDependencies": {
     "node-hid": "^3.1.2"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/random-knights/micr0pad.git"
-  },
-  "homepage": "https://github.com/random-knights/micr0pad#readme",
-  "bin": {
-    "micr0pad": "bin/micr0pad.js"
   },
   "engines": {
     "node": ">=18"
   },
-  "files": [
-    "bin/",
-    "docs/",
-    "hooks/",
-    "lib/",
-    "public/",
-    "scripts/",
-    "config.example.json",
-    "run.cmd",
-    "server.js",
-    "add-layers.js",
-    "backup-keymap.js",
-    "bind-dial-joy.js",
-    "lights-off.js",
-    "probe.js",
-    "restore-keymap.js"
-  ]
+  "publishConfig": {
+    "access": "public"
+  }
 }
