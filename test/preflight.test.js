@@ -57,3 +57,13 @@ test("installDependencies does nothing when node_modules is already there", () =
   // the call would fail and this would return false.
   assert.equal(preflight.installDependencies(dir), true);
 });
+
+test("an installed package never runs npm inside node_modules", () => {
+  const dir = path.join(scratch(), "node_modules", "@randomknights", "micr0pad");
+  fs.mkdirSync(dir, { recursive: true });
+  // Same trap as above: an npm call here, with no package.json, would fail.
+  assert.equal(preflight.isInstalledPackage(dir), true);
+  assert.equal(preflight.installDependencies(dir), true);
+  assert.equal(fs.existsSync(path.join(dir, "node_modules")), false);
+  assert.equal(preflight.isInstalledPackage(scratch()), false);
+});

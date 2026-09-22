@@ -72,7 +72,34 @@ over raw HID, and what it learns about your machine stays on your machine.
 
 ## <span style="color:#555555"><u> **INSTALL** </u></span>
 
-Two commands, and the second one is the whole install:
+One command:
+
+```powershell
+npx @randomknights/micr0pad
+```
+
+npm downloads the package, writes your `config.json` from the example on the
+first run, and starts the server. Open **http://localhost:4120**. No compiler
+is needed: the one native dependency, `node-hid`, ships prebuilt binaries for
+Windows (x64, x86, arm64), macOS (Intel and Apple silicon) and Linux (x64,
+arm64, armv7, and x64 musl). On any other platform npm skips it, and the app
+runs the virtual pad described below instead of a physical one.
+
+If npm answers `E404`, the package has not reached the registry yet; use the
+checkout below, which is the same app.
+
+Where your settings live: with `npx`, `config.json` (your slot names, action
+commands and the pairing token) is written inside npm's cache, next to the
+package. A new version, or a cleared cache, starts from a fresh config and a
+fresh pairing. To keep one config across versions, point
+`RK_MICROPAD_CONFIG` at a file of your own before starting. A keymap backup
+taken from the page lands in the same place, so take the one you mean to keep
+from a checkout (`npm run backup-keymap`, below).
+
+On Linux, reading the pad needs `libudev` (present on nearly every desktop
+distribution) and permission to open the device's `hidraw` node.
+
+### From a checkout (contributors, and the flash scripts)
 
 ```powershell
 git clone https://github.com/random-knights/micr0pad
@@ -82,16 +109,8 @@ npm start
 
 `npm start` installs the dependencies if they are missing, writes your
 `config.json` from the checked-in example on the first run, and then starts the
-server. Open **http://localhost:4120**.
-
-As one line, which is what the hosted 1aunchpad shows you to copy:
-
-```powershell
-git clone https://github.com/random-knights/micr0pad; cd micr0pad; npm start
-```
-
-There is **no published npm package yet**, so `npx` cannot install this. A
-checkout is the whole install today; a published package comes later.
+server. The keymap and flash scripts below (`npm run backup-keymap` and the
+rest) run from a checkout.
 
 You need Node 18 or newer. If yours is older the app says so, with your version
 number, instead of failing later somewhere confusing.
@@ -602,6 +621,7 @@ Questions, bugs and ideas: [open an issue](https://github.com/random-knights/mic
 
 ## <span style="color:#555555"><u> **LICENSE** </u></span>
 
-MIT. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). The Random
+Knights name and brand assets are not covered by the license.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

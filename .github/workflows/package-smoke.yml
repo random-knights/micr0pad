@@ -1,0 +1,50 @@
+name: Package smoke
+
+# The packed tarball, installed from the registry and started, on Windows and
+# macOS. CI Gate does the same on Linux on every change; this runs only when
+# the packaging or the dependency changes, because macOS minutes cost ten
+# times Linux minutes on a private repo. It is NOT a required check, so the
+# paths filter here cannot strand a pull request.
+#
+# The question it answers: does node-hid install from its prebuilt binary
+# (no compiler) on this platform, and does the bin start? No runner has a
+# pad, and RK_MICROPAD_NO_DEVICE=1 keeps the device path off anyway.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - package.json
+      - package-lock.json
+      - bin/**
+      - scripts/preflight.js
+      - scripts/smoke-pack.js
+      - lib/wldevice.js
+      - .github/workflows/package-smoke.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Package smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "20"
+
+      - name: Install the packed tarball and run the bin
+        run: node scripts/smoke-pack.js

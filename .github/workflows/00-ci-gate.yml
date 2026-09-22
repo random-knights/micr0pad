@@ -51,9 +51,26 @@ jobs:
       - name: Run the test suite
         run: npm test
 
+      # The npm package, checked on every change. check-pack fails on a missing
+      # required file, on anything that must never ship (tests, config.json,
+      # logs, keys, env files) and on any file git does not track. The dry-run
+      # publish runs the same prepublishOnly hook a real publish runs, and
+      # needs no login and no token. The smoke installs the packed tarball
+      # into an empty folder from the registry, runs the bin with the device
+      # disabled until /api/state answers 200, then again with node-hid left
+      # out entirely to prove the virtual pad needs no native module.
+      - name: Check the npm tarball
+        run: npm run check-pack
+
+      - name: Dry-run publish
+        run: npm publish --dry-run
+
+      - name: Install the packed tarball and run the bin
+        run: node scripts/smoke-pack.js
+
       # The check must say what it did. A green gate that silently ran nothing
       # is the failure this step exists to prevent.
       - name: Report what this gate ran
         run: |
-          echo "CI Gate ran: npm ci --ignore-scripts, then npm test (node:test)."
+          echo "CI Gate ran: npm ci --ignore-scripts, npm test (node:test), check-pack, npm publish --dry-run, and the packed-tarball smoke."
           echo "Not covered here: anything that needs the physical device."

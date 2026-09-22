@@ -1,0 +1,13 @@
+micr0pad
+Copyright 2026 Random Knights, LLC
+
+This product is licensed under the Apache License, Version 2.0. See the
+LICENSE file for the full text.
+
+The Random Knights name, the 0P mark and the brand assets under assets/ and
+public/ are property of Random Knights, LLC. The license grants no rights to
+them (Apache License 2.0, section 6).
+
+This product depends on node-hid (MIT OR X11), which includes hidapi. Both
+licenses ship inside the node-hid package, which npm installs beside this one;
+nothing from either is copied into this package.

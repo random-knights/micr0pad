@@ -2,7 +2,7 @@
 "use strict";
 // bin/micr0pad.js - the single entry point.
 //
-//   npx github:random-knights/micr0pad     (once the repo is public)
+//   npx @randomknights/micr0pad            (from the npm registry)
 //   npm start                              (from a clone)
 //   node bin/micr0pad.js                   (the same thing, spelled out)
 //

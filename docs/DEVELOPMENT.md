@@ -259,7 +259,13 @@ across.
 
 The pair box on the hosted page asks for an eight-character code, and the code
 only exists once this bridge is running on the same machine. The command that
-gets there from nothing is a checkout, not an `npx`:
+gets there from nothing is:
+
+```powershell
+npx @randomknights/micr0pad
+```
+
+and, from a checkout, the same app:
 
 ```powershell
 git clone https://github.com/random-knights/micr0pad; cd micr0pad; npm start
@@ -267,5 +273,40 @@ git clone https://github.com/random-knights/micr0pad; cd micr0pad; npm start
 
 Then press **show pairing code** in the Hosted Pages box on
 http://localhost:4120 and type those eight characters into the hosted page.
-`@random-knights/bridge` is NOT on the npm registry and nothing here publishes
-it; whether to publish is the owner's call.
+The package name is `@randomknights/micr0pad` (no hyphen in the scope).
+`@random-knights/bridge` never existed; anything that still names it is stale.
+
+## Publishing to npm
+
+The package is `@randomknights/micr0pad`, Apache-2.0, public. What ships is
+the `files` list in `package.json`, and `npm run check-pack` holds it: every
+required file present, nothing that must never ship (tests, fixtures, a
+`config.json`, logs, keymap backups, env files, keys, agent notes, CI files),
+and nothing git does not track. It runs in CI and as `prepublishOnly`, so a
+publish from a dirty checkout stops before it uploads anything.
+
+CI also installs the packed tarball into an empty folder and runs the bin
+(`node scripts/smoke-pack.js`): on Linux in CI Gate on every change, and on
+Windows and macOS in the Package smoke workflow when the packaging changes.
+
+**First publish, by hand.** npm can only link a package to a workflow once
+the package exists, so version one goes up from a machine:
+
+```powershell
+git clone https://github.com/random-knights/micr0pad; cd micr0pad
+npm login
+npm publish --access public
+```
+
+**Then trusted publishing.** On npmjs.com, open the package, Settings,
+Trusted Publisher, choose GitHub Actions and enter: organization or user
+`random-knights`, repository `micr0pad`, workflow filename `publish.yml`,
+environment left empty. Then, in the GitHub repository settings, set the
+Actions variable `NPM_TRUSTED_PUBLISHING` to `linked`. From then on a version
+bump merged to `main` is published by running the Publish to npm workflow by
+hand. No npm token is stored anywhere; the workflow refuses to run until the
+variable says `linked`, and refuses any branch but `main`.
+
+Provenance needs a public source repository. While this repository is private
+the workflow publishes without it; once it is public the same workflow adds
+`--provenance` by itself.
