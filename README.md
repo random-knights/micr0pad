@@ -55,10 +55,6 @@ over raw HID, and what it learns about your machine stays on your machine.
   <img alt="Micr0Pad running with the Random Knights agent workspace" src="assets/readme-demo.gif?v=20260906">
 </div>
 
-<div align="center">
-  <img alt="Micr0Pad browser dashboard" src="assets/app-screenshot.png?v=20260907">
-</div>
-
 - Built with
   - Node, no build step. One dependency, `node-hid`, which brings two more in
     with it (a clean install reports three packages).
@@ -157,6 +153,10 @@ If port 4120 is taken, set `RK_MICROPAD_PORT` to something else before starting.
   (see below), and an optional energy panel.
 - **Pairing and revert.** Hand the lights back to the firmware so you can pair
   the pad over Bluetooth, or put the original keymap back.
+
+<div align="center">
+  <img alt="Micr0Pad browser dashboard" src="assets/app-screenshot.png?v=20260907">
+</div>
 
 ### Without a pad
 
