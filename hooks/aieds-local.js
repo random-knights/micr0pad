@@ -7,7 +7,7 @@
  * JSON payload on stdin. The script reads the session's real transcript,
  * adds up the real token counts the API reported, runs them through the SAME
  * AiEDs v2 formula the app uses, and appends one line per model to
- * _state/aieds-local.jsonl.
+ * aieds-local.jsonl (where: see WHERE THIS LIVES NOW below).
  *
  * WHAT THIS IS NOT
  * This does NOT write the app's Firestore collection users/{uid}/aiedsUsage.
@@ -17,7 +17,8 @@
  *
  * THE FORMULA IS COPIED, NOT REINVENTED
  * The constants and the two functions below are a literal port of
- * the reference implementation in the ruok repo, functions/src/index.ts:
+ * the reference implementation in the hosted app's server code,
+ *   functions/src/index.ts:
  *   lines 225-257    the constants and the per-model-prefix profiles
  *   lines 1210-1235  aiedsProfileForModel and estimateAiedsImpact
  * That TypeScript is itself a mirror of rk_ai lib/src/impact/ai_impact.dart,
@@ -74,7 +75,7 @@
  *
  * SAFETY
  * Never blocks a session: every failure path writes a diagnostic line to
- * _state/aieds-local.log and exits 0.
+ * aieds-local.log beside the log and exits 0.
  * Never invents a number: if no usage rows are found, NOTHING is appended.
  *
  * WHERE THIS LIVES NOW
@@ -83,9 +84,12 @@
  *   "hooks": { "SessionEnd": [ { "hooks": [
  *     { "type": "command", "command": "node",
  *       "args": ["<path-to-repo>/hooks/aieds-local.js"] } ] } ] }
- * The log defaults to <repo>/aieds-local.jsonl; set AIEDS_LOG_PATH to put it
- * somewhere else, and set the SAME value for the server so the reader and the
- * writer agree on one file.
+ * The log defaults to aieds-local.jsonl in the per-user micr0pad directory
+ * (lib/paths.js: %APPDATA%\micr0pad on Windows, ~/Library/Application
+ * Support/micr0pad on macOS, $XDG_CONFIG_HOME/micr0pad or ~/.config/micr0pad
+ * on Linux), which is where the server looks first. Set AIEDS_LOG_PATH to put
+ * it somewhere else, and set the SAME value for the server so the reader and
+ * the writer agree on one file.
  *
  * MANUAL RUN (for testing, same code path as the hook):
  *   node aieds-local.js --transcript <path-to-session.jsonl>
@@ -168,18 +172,30 @@ function estimateAiedsImpact(modelId, inputTokens, outputTokens) {
 // ---------------------------------------------------------------------------
 
 // AIEDS_LOG_PATH wins so the writer and the reader (lib/aieds.js, same env var)
-// can be pointed at one file; otherwise everything sits in the repo root.
+// can be pointed at one file; otherwise everything sits in the per-user
+// directory, which survives an npx upgrade where the app directory does not.
 const OUT_PATH = process.env.AIEDS_LOG_PATH
   ? path.resolve(process.env.AIEDS_LOG_PATH)
-  : path.join(__dirname, "..", "aieds-local.jsonl");
+  : path.join(require("../lib/paths").dataDir(), "aieds-local.jsonl");
 const STATE_DIR = path.dirname(OUT_PATH);
 const CURSOR_PATH = path.join(STATE_DIR, "aieds-local-cursor.json");
 const LOG_PATH = path.join(STATE_DIR, "aieds-local.log");
 const LAST_PAYLOAD_PATH = path.join(STATE_DIR, "aieds-hook-last-payload.json");
 
+// The per-user directory does not exist until something writes to it, and a
+// hook may well be the first thing that does. Never throws.
+function ensureStateDir() {
+  try {
+    fs.mkdirSync(STATE_DIR, { recursive: true });
+  } catch (_) {
+    // The write that follows reports the real failure.
+  }
+}
+
 function diag(message) {
   const line = `${new Date().toISOString()} ${message}\n`;
   try {
+    ensureStateDir();
     fs.appendFileSync(LOG_PATH, line, "utf8");
   } catch (_) {
     // Nothing useful left to do; never throw out of a hook.
@@ -204,6 +220,7 @@ function readCursor() {
 
 function writeCursor(cursor) {
   try {
+    ensureStateDir();
     fs.writeFileSync(CURSOR_PATH, JSON.stringify(cursor, null, 2), "utf8");
   } catch (err) {
     diag(`cursor write failed: ${err.message}`);
@@ -392,6 +409,7 @@ async function main() {
   // Claude Code versions, and this is the only honest record of what arrived.
   if (raw.trim()) {
     try {
+      ensureStateDir();
       fs.writeFileSync(LAST_PAYLOAD_PATH, raw, "utf8");
     } catch (err) {
       diag(`could not save last payload: ${err.message}`);
@@ -535,6 +553,7 @@ async function main() {
   }
 
   try {
+    ensureStateDir();
     fs.appendFileSync(
       OUT_PATH,
       lines.map((l) => JSON.stringify(l)).join("\n") + "\n",

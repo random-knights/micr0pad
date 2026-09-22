@@ -79,7 +79,7 @@ npx @randomknights/micr0pad
 ```
 
 npm downloads the package, writes your `config.json` from the example on the
-first run, and starts the server. Open **http://localhost:4120**. No compiler
+first run (see "Where your settings live" below), and starts the server. Open **http://localhost:4120**. No compiler
 is needed: the one native dependency, `node-hid`, ships prebuilt binaries for
 Windows (x64, x86, arm64), macOS (Intel and Apple silicon) and Linux (x64,
 arm64, armv7, and x64 musl). On any other platform npm skips it, and the app
@@ -88,13 +88,23 @@ runs the virtual pad described below instead of a physical one.
 If npm answers `E404`, the package has not reached the registry yet; use the
 checkout below, which is the same app.
 
-Where your settings live: with `npx`, `config.json` (your slot names, action
-commands and the pairing token) is written inside npm's cache, next to the
-package. A new version, or a cleared cache, starts from a fresh config and a
-fresh pairing. To keep one config across versions, point
-`RK_MICROPAD_CONFIG` at a file of your own before starting. A keymap backup
-taken from the page lands in the same place, so take the one you mean to keep
-from a checkout (`npm run backup-keymap`, below).
+Where your settings live: `config.json` (your slot names, action commands and
+the pairing token), the keymap backup, `watch.log`, the AiEDs log and the
+opt-in analytics log are kept in one folder that belongs to you, not to the
+copy of the app you ran, so a new version or a cleared npm cache keeps them:
+
+| System  | Folder                                                  |
+| ------- | ------------------------------------------------------- |
+| Windows | `%APPDATA%\micr0pad`                                    |
+| macOS   | `~/Library/Application Support/micr0pad`                |
+| Linux   | `$XDG_CONFIG_HOME/micr0pad`, or `~/.config/micr0pad`    |
+
+`config.json` there is readable by your user only, where the system allows it.
+Set `RK_MICROPAD_DATA_DIR` to use another folder, or `RK_MICROPAD_CONFIG` to
+point at one config file of your own. A checkout that kept `config.json` or
+`keymap-backup.json` beside the app before this folder existed has them copied
+across once, on the next start; the old copies are left where they were and
+are no longer read.
 
 On Linux, reading the pad needs `libudev` (present on nearly every desktop
 distribution) and permission to open the device's `hidraw` node.
@@ -111,8 +121,8 @@ npm start
 ```
 
 `npm start` installs the dependencies if they are missing, writes your
-`config.json` from the checked-in example on the first run, and then starts the
-server. The keymap and flash scripts below (`npm run backup-keymap` and the
+`config.json` from the checked-in example on the first run (into the per-user
+folder above, like `npx`), and then starts the server. The keymap and flash scripts below (`npm run backup-keymap` and the
 rest) run from a checkout.
 
 You need Node 18 or newer. If yours is older the app says so, with your version
@@ -236,8 +246,9 @@ copy of this server is usually still running.
 
 ## <span style="color:#555555"><u> **CONFIGURE** </u></span>
 
-Everything you change in the browser is saved to `config.json`, which is created
-for you on the first run and is never committed. Slot matching, colors, action
+Everything you change in the browser is saved to `config.json` in your
+per-user folder (see "Where your settings live" above), which is created for
+you on the first run and is never committed. Slot matching, colors, action
 commands, the outer light and the pairing token all live there.
 `config.example.json` is the same shape, checked in, to read or copy from.
 
@@ -352,12 +363,12 @@ What each piece is doing:
   to every request and a page cannot forge it, so a token lifted from one site
   does not work from another.
 - **The list of sites that may even ask is fixed.** `hostedOrigins` in
-  `config.json`, shipping as `https://rand0m.ai`, `https://stg.rand0m.ai` and
-  `https://abc-rand0m-ai.web.app`. It is never a wildcard: an entry that is not
-  a plain `https://` origin is dropped rather than honored. A `config.json`
-  written before `https://stg.rand0m.ai` was added keeps its own shorter list,
-  because a user's explicit list is never widened behind their back: add the
-  line by hand if you want to pair from the staging page.
+  `config.json`, shipping as `https://rand0m.ai` only. It is never a wildcard:
+  an entry that is not a plain `https://` origin is dropped rather than
+  honored, and a list you have written yourself is never widened behind your
+  back. A developer who needs to pair from another host (a staging copy of
+  the site, say) adds its exact origin to that list by hand, as shown in
+  `docs/DEVELOPMENT.md`.
 
 **What a paired page can do:** everything the local dashboard can, with three
 exceptions. It reads pad and agent state, system metrics and the process table,
@@ -409,9 +420,10 @@ For Claude Code, add a SessionEnd hook to `~/.claude/settings.json`:
 ```
 
 The hook reads that session's own transcript, adds up the token counts the API
-reported, and appends one line per model to `aieds-local.jsonl` beside the app.
-Set `AIEDS_LOG_PATH` to put it somewhere else, and give the server the same
-value so both ends read the same file.
+reported, and appends one line per model to `aieds-local.jsonl` in your
+per-user folder, which is where the server reads it. Set `AIEDS_LOG_PATH` to
+put it somewhere else, and give the server the same value so both ends read
+the same file.
 
 Cost is a **modeled list price, not a bill.** Rates live in
 `lib/aieds-rates.json`, and a model that is not in that file gets no cost figure

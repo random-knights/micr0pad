@@ -11,7 +11,9 @@ const fs = require("fs");
 const path = require("path");
 const { open } = require("./lib/wldevice");
 
-const BACKUP = path.join(__dirname, "keymap-backup.json");
+// The per-user directory (lib/paths.js), shared with the server, so a backup
+// taken here is the one the page reverts from.
+const BACKUP = require("./lib/paths").keymapBackupPath();
 
 // Sector center -> direction, per the reference hacking.md table.
 // 0.000 east, 0.125 NE, 0.250 north, 0.375 NW, 0.500 west,

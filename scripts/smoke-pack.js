@@ -8,7 +8,9 @@
 //   3. run the `micr0pad` bin there with RK_MICROPAD_NO_DEVICE=1, so no HID
 //      handle is ever opened, on a scratch port;
 //   4. poll GET /api/state until it answers 200, check the first-run
-//      config.json was written inside the installed package, then stop it.
+//      config.json was written to the per-user directory (pointed at a
+//      scratch folder with RK_MICROPAD_DATA_DIR) and NOT inside the installed
+//      package, where the next version would lose it; then stop it.
 //
 // It also reports whether node-hid had to be compiled (a build/ folder) or
 // used a prebuilt binary, because "installs with no toolchain" is the claim.
@@ -62,6 +64,7 @@ async function boot(appDir, scratch, noDevice) {
   const env = Object.assign({}, process.env, {
     RK_MICROPAD_PORT: String(PORT),
     AIEDS_LOG_PATH: path.join(scratch, "aieds-local.jsonl"),
+    RK_MICROPAD_DATA_DIR: path.join(scratch, "data"),
   });
   delete env.RK_MICROPAD_CONFIG;
   if (noDevice) env.RK_MICROPAD_NO_DEVICE = "1";
@@ -123,10 +126,13 @@ async function main() {
     throw new Error("the tarball shipped a config.json");
   }
   await boot(appDir, scratch, true);
-  if (!fs.existsSync(path.join(installed, "config.json"))) {
-    throw new Error("the first run did not write config.json in the installed package");
+  if (!fs.existsSync(path.join(scratch, "data", "config.json"))) {
+    throw new Error("the first run did not write config.json in the per-user directory");
   }
-  console.log("first-run config.json written inside the installed package (contents not printed)");
+  if (fs.existsSync(path.join(installed, "config.json"))) {
+    throw new Error("the first run wrote config.json inside the installed package");
+  }
+  console.log("first-run config.json written to the per-user directory, not the package (contents not printed)");
 
   // Phase 2, CI only: no native module at all (node-hid omitted, as npm does
   // when a platform has no prebuilt binary and no compiler), and the device

@@ -15,7 +15,9 @@ const fs = require("fs");
 const path = require("path");
 const { open } = require("./lib/wldevice");
 
-const OUT = path.join(__dirname, "keymap-backup.json");
+// The per-user directory (lib/paths.js), shared with the server, so a backup
+// taken here is the one the page reverts from.
+const OUT = require("./lib/paths").keymapBackupPath();
 const force = process.argv.includes("--force");
 
 if (fs.existsSync(OUT) && !force) {
@@ -30,7 +32,7 @@ if (fs.existsSync(OUT) && !force) {
   const dev = open();
   try {
     const raw = await dev.call("fs.read", { file: "keymap.json" });
-    fs.writeFileSync(OUT, JSON.stringify(raw, null, 2), "utf8");
+    require("./lib/paths").writePrivate(OUT, JSON.stringify(raw, null, 2));
     console.log("Backed up keymap to", OUT, `(${raw.data.length} chars of config)`);
     const version = await dev.call("sys.version");
     console.log("firmware:", version.version);

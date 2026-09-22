@@ -10,7 +10,9 @@
 // It does three things, each only when needed:
 //   1. checks the Node version, and says the real number if it is too old;
 //   2. installs dependencies if node_modules is not there yet;
-//   3. copies config.example.json to config.json on first run.
+//   3. on first run, gives you a config.json in the per-user directory
+//      (lib/paths.js): the one a checkout already had beside the app, moved
+//      across once, or else a copy of config.example.json.
 //
 // It never edits an existing config.json. That file is yours once it exists.
 //
@@ -20,6 +22,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const paths = require("../lib/paths");
 
 const APP_DIR = path.join(__dirname, "..");
 const MIN_NODE_MAJOR = 18;
@@ -78,22 +81,40 @@ function installDependencies(dir = APP_DIR) {
   return false;
 }
 
-// First run gets a config.json copied from the checked-in example, so the pad
-// works before anyone opens an editor. config.json is gitignored: it ends up
-// holding your slot names, your action commands and the pairing token, none
-// of which belongs in a public repo.
-function ensureConfig(dir = APP_DIR) {
-  const configPath = path.join(dir, "config.json");
+// Where config.json lives: RK_MICROPAD_CONFIG when set, else the per-user
+// directory. Kept in step with lib/config.js, which reads the same two.
+function defaultConfigPath(env = process.env) {
+  return env.RK_MICROPAD_CONFIG
+    ? path.resolve(env.RK_MICROPAD_CONFIG)
+    : path.join(paths.dataDir({ env }), "config.json");
+}
+
+// First run gets a config.json, so the pad works before anyone opens an
+// editor. It lives in the per-user directory, never beside the app: it ends
+// up holding your slot names, your action commands and the pairing token,
+// none of which belongs in a public repo or in npm's cache, where every new
+// version would start it over.
+//
+// A checkout that already kept a config.json beside the app has THAT file
+// moved across first. The order matters: copying the example first would
+// leave the migration nothing to do, and the old slots, actions and token
+// would be silently replaced by defaults. `migrate` is false for an explicit
+// RK_MICROPAD_CONFIG, which is a file somebody chose on purpose.
+function ensureConfig(dir = APP_DIR, configPath = defaultConfigPath(), { migrate = !process.env.RK_MICROPAD_CONFIG } = {}) {
   const examplePath = path.join(dir, "config.example.json");
   if (fs.existsSync(configPath)) return true;
+  if (migrate && path.basename(configPath) === "config.json" &&
+      paths.migrateOnce("config.json", { fromDir: dir, toDir: path.dirname(configPath), log })) {
+    return true;
+  }
   if (!fs.existsSync(examplePath)) {
     // Not an error. lib/config.js carries the same defaults in code and
     // writes the file itself on first load.
     log("no config.example.json to copy, so the built-in defaults will be used");
     return true;
   }
-  fs.copyFileSync(examplePath, configPath);
-  log("created config.json from config.example.json");
+  paths.writePrivate(configPath, fs.readFileSync(examplePath, "utf8"));
+  log(`created ${configPath} from config.example.json`);
   return true;
 }
 
@@ -104,4 +125,4 @@ function main(dir = APP_DIR) {
 
 if (require.main === module) main();
 
-module.exports = { checkNode, isInstalledPackage, installDependencies, ensureConfig, main, APP_DIR, MIN_NODE_MAJOR };
+module.exports = { checkNode, isInstalledPackage, installDependencies, ensureConfig, defaultConfigPath, main, APP_DIR, MIN_NODE_MAJOR };

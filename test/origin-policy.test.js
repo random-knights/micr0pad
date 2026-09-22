@@ -23,9 +23,10 @@ const { spawn } = require("child_process");
 
 const ROOT = path.join(__dirname, "..");
 const SERVER = fs.readFileSync(path.join(ROOT, "server.js"), "utf8");
+const SCRATCH = fs.mkdtempSync(path.join(require("os").tmpdir(), "micr0pad-origin-"));
 
 // This test used to assert that server.js contained the string
-// "Access-Control-Allow-Origin" nowhere at all. Pairing (RK-44) makes that
+// "Access-Control-Allow-Origin" nowhere at all. Pairing makes that
 // assertion false on purpose: a paired hosted origin has to be able to read
 // the body it asked for. What has NOT changed is the thing that assertion was
 // protecting, so that is what is asserted now - no wildcard, and no constant
@@ -118,7 +119,16 @@ function startServer(port) {
       // claimed it would fight the owner's own running server and hang. The
       // seam disables the hardware only; every route and every check in front
       // of a route is the real one.
-      env: { ...process.env, RK_MICROPAD_PORT: String(port), RK_MICROPAD_NO_DEVICE: "1" },
+      // A scratch data directory and config: booting the server writes a
+      // config.json (the pairing token), and that must never land in the
+      // per-user directory of whoever runs the tests.
+      env: {
+        ...process.env,
+        RK_MICROPAD_PORT: String(port),
+        RK_MICROPAD_NO_DEVICE: "1",
+        RK_MICROPAD_DATA_DIR: SCRATCH,
+        RK_MICROPAD_CONFIG: path.join(SCRATCH, "config.json"),
+      },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";

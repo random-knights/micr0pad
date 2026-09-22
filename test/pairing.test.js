@@ -25,11 +25,13 @@ const ROOT = path.join(__dirname, "..");
 const { Pairing, CODE_LENGTH, CODE_TTL_MS, DEFAULT_HOSTED_ORIGINS } = require("../lib/pairing");
 
 const HOSTED = "https://rand0m.ai";
-const OTHER_HOSTED = "https://abc-rand0m-ai.web.app";
+// A second hosted origin of the kind a developer adds to their own
+// config.json for a staging host. It is not in the shipped defaults.
+const OTHER_HOSTED = "https://staging.example";
 const EVIL = "https://evil.example";
 
 function freshPairing() {
-  const cfg = { pairings: [] };
+  const cfg = { pairings: [], hostedOrigins: [HOSTED, OTHER_HOSTED] };
   const writes = [];
   const p = new Pairing(cfg, { persist: (list) => writes.push(list.length) });
   return { cfg, p, writes };
@@ -125,17 +127,26 @@ test("the hosted origin list is never a wildcard", () => {
   assert.deepEqual(Pairing.normalizeHostedOrigins(undefined), DEFAULT_HOSTED_ORIGINS);
 });
 
-test("the staging host the owner reviews on may attempt a pairing", () => {
-  // stg.rand0m.ai is a separate Origin from abc-rand0m-ai.web.app even though
-  // Hosting serves the same site, so it has to be listed by name.
-  const { p } = freshPairing();
-  assert.equal(p.mayAttemptPairing("https://stg.rand0m.ai"), true);
+test("the shipped defaults are the production site only", () => {
+  // www.rand0m.ai redirects to the apex and never sends its own Origin, and a
+  // staging host is something a developer adds to their own config.json.
+  assert.deepEqual(DEFAULT_HOSTED_ORIGINS, ["https://rand0m.ai"]);
+  const p = new Pairing({ pairings: [] });
+  assert.equal(p.mayAttemptPairing("https://rand0m.ai"), true);
+  assert.equal(p.mayAttemptPairing("https://stg.rand0m.ai"), false, "no staging host ships");
+  assert.equal(p.mayAttemptPairing("https://abc-rand0m-ai.web.app"), false, "no staging host ships");
+});
+
+test("a staging origin added to config.json may attempt a pairing, by exact name", () => {
+  // The documented way a developer pairs from a staging host: list it.
+  const p = new Pairing({ pairings: [], hostedOrigins: ["https://rand0m.ai", OTHER_HOSTED] });
+  assert.equal(p.mayAttemptPairing(OTHER_HOSTED), true);
   const code = p.start(1000).code;
-  const paired = p.complete(code, "https://stg.rand0m.ai", "staging", 1100);
+  const paired = p.complete(code, OTHER_HOSTED, "staging", 1100);
   assert.equal(paired.ok, true);
-  assert.equal(p.match("https://stg.rand0m.ai", paired.token).origin, "https://stg.rand0m.ai");
+  assert.equal(p.match(OTHER_HOSTED, paired.token).origin, OTHER_HOSTED);
   // and still nothing else gets in.
-  assert.equal(p.mayAttemptPairing("https://stg.rand0m.ai.evil.test"), false);
+  assert.equal(p.mayAttemptPairing(OTHER_HOSTED + ".evil.test"), false);
 });
 
 test("revoke removes exactly one pairing and persists", () => {
@@ -191,6 +202,7 @@ function startServer(port, configPath) {
         RK_MICROPAD_PORT: String(port),
         RK_MICROPAD_NO_DEVICE: "1",
         RK_MICROPAD_CONFIG: configPath,
+        RK_MICROPAD_DATA_DIR: path.dirname(configPath),
       },
       stdio: ["ignore", "pipe", "pipe"],
     });

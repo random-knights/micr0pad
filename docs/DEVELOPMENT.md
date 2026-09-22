@@ -15,6 +15,8 @@ lib/mapper.js        agent -> slot assignment, and the color/effect for each
 lib/pad.js           device geometry, status colors, underglow + effect table
 lib/padmap.json      the same geometry as DATA, vendored into the hosted app
 lib/herdr.js         thin wrapper over the herdr CLI
+lib/config.js        config.json: defaults, load, save, the pairing token
+lib/paths.js         the per-user folder, and the one-time move from a checkout
 lib/aieds.js         reads the local AiEDs log into totals and a 30-day series
 lib/aieds-cost.js    the one cost function (list price, never a bill)
 lib/aieds-rates.json owner-editable per-token prices
@@ -275,6 +277,42 @@ Then press **show pairing code** in the Hosted Pages box on
 http://localhost:4120 and type those eight characters into the hosted page.
 The package name is `@randomknights/micr0pad` (no hyphen in the scope).
 `@random-knights/bridge` never existed; anything that still names it is stale.
+
+### Pairing from a staging host
+
+The shipped `hostedOrigins` is `["https://rand0m.ai"]` and nothing else
+(`www.rand0m.ai` redirects there, so it never sends its own Origin). The
+browser sends each host's own name as the Origin, so a pairing started from
+any other host, a staging copy of the site included, is refused with "origin
+is not in hostedOrigins" until that exact origin is listed. Add it to the
+`hostedOrigins` array in YOUR `config.json` (the per-user folder: Windows
+`%APPDATA%\micr0pad`, macOS `~/Library/Application Support/micr0pad`, Linux
+`$XDG_CONFIG_HOME/micr0pad` or `~/.config/micr0pad`), keeping the production
+entry:
+
+```json
+"hostedOrigins": ["https://rand0m.ai", "https://staging.example.com"],
+```
+
+then restart the server. The startup line `hosted origins allowed to pair:`
+shows the list it loaded. `https` only, no path, no trailing slash, never a
+wildcard: an entry that is not a plain https origin is dropped on load.
+
+## Where per-user files live
+
+`lib/paths.js` decides, and every reader and writer goes through it:
+`config.json`, `keymap-backup.json`, `watch.log`, `aieds-local.jsonl` (plus
+the hook's cursor and diagnostic files beside it) and `analytics-local.jsonl`.
+With npx the app directory is a folder in npm's cache that a new version
+replaces, so nothing that belongs to the user may be written there.
+`RK_MICROPAD_DATA_DIR` moves the folder, `RK_MICROPAD_CONFIG` moves
+`config.json` alone, `AIEDS_LOG_PATH` and `MICR0PAD_ANALYTICS_PATH` move their
+logs. Every test that boots the server sets the first two to a scratch
+folder, so running the tests never touches the real one. A checkout's old
+`config.json`, `keymap-backup.json` and `analytics-local.jsonl` are copied
+across once (never over an existing file, and the old copy is left in place).
+The preflight migrates BEFORE it would copy the example, or a checkout's
+config would be shadowed by a fresh default one.
 
 ## Publishing to npm
 
