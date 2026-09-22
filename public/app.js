@@ -1370,18 +1370,30 @@ function renderPairCode(code, expiresAt) {
   if (!box) return;
   if (pairCountdown) { clearInterval(pairCountdown); pairCountdown = null; }
   if (!code) { box.hidden = true; box.textContent = ""; return; }
+  // Built once per code, so the copy button keeps its focus while the
+  // countdown ticks; only the note's text changes each second.
+  box.innerHTML = "";
+  const value = document.createElement("span");
+  value.className = "pair-value";
+  value.textContent = code;
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "device-btn pair-copy";
+  copy.textContent = window.PairCopy ? window.PairCopy.COPY_LABEL : "copy";
+  copy.setAttribute("aria-label", "copy the pairing code");
+  copy.addEventListener("click", () => {
+    if (window.PairCopy) window.PairCopy.copyPairCode(code, copy, navigator.clipboard);
+  });
+  const note = document.createElement("span");
+  note.className = "pair-expiry";
+  box.append(value, copy, note);
   const tick = () => {
     const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
     if (left <= 0) {
       renderPairCode(null);
       return;
     }
-    box.innerHTML = "";
-    box.append(code);
-    const note = document.createElement("span");
-    note.className = "pair-expiry";
-    note.textContent = "type this into the hosted page - " + left + "s left, one use";
-    box.append(note);
+    note.textContent = "type or paste this into the hosted page - " + left + "s left, one use";
   };
   box.hidden = false;
   tick();
