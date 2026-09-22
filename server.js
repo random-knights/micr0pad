@@ -89,9 +89,11 @@ function callerOf(req, res, { requireHeader }) {
   if (origin === ALLOWED_ORIGIN) return { kind: "local", origin };
   if (!origin) {
     if (!requireHeader) return { kind: "local", origin: null };
+    logRefusedHosted(req, "a mutation without an Origin header");
   } else {
     const paired = pairing.match(origin, bearerToken(req));
     if (paired) return { kind: "paired", origin, id: paired.id };
+    logRefusedHosted(req, pairing.refusalReason(origin, Boolean(bearerToken(req))));
   }
   res.writeHead(403, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
@@ -106,7 +108,19 @@ function allowPairedOrigin(res, origin) {
   res.setHeader("Vary", "Origin");
 }
 
+// One line per refused hosted request, with the reason, so the owner can read
+// in the bridge's own console why a hosted page is not getting through. It
+// names the method, the path, the origin and the reason. It never prints any
+// other header: no token, no code, no body.
+function logRefusedHosted(req, reason) {
+  const origin = req.headers.origin ? String(req.headers.origin).slice(0, 200) : "(no origin)";
+  const url = String(req.url || "").split("?")[0].slice(0, 200);
+  console.log(`refused hosted request: ${req.method} ${url} from ${origin}: ${reason}`);
+}
+
 function refuseLocalOnly(res) {
+  // res.req is the request this response answers (Node sets it).
+  if (res.req) logRefusedHosted(res.req, "this route is local to the machine the pad is on");
   res.writeHead(403, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ ok: false, error: "this route is local to the machine the pad is on" }));
   return null;
@@ -360,9 +374,18 @@ function readJsonBody(req, res, then) {
 // CORS preflight. The browser is asking "may this origin send you an
 // Authorization header?", and the honest answers are: yes for an origin that
 // already holds a pairing, yes for a hosted origin asking about
-// /api/pair/complete (the one route that exists to create one), no otherwise.
+// /api/pair/complete (the one route that exists to create one) or
+// /api/pair/status (the probe that says whether it is paired), no otherwise.
 // A refusal is a 403 with no CORS headers, which is what makes the browser
 // block the real request.
+//
+// Chrome's Local Network Access (Chrome 142 and later) gates a public page's
+// request to localhost behind a user permission, not behind a preflight, so
+// nothing here grants or needs that permission. The older Private Network
+// Access preflight header (Access-Control-Request-Private-Network) is still
+// answered, for an allowed origin only, because a browser or an enterprise
+// policy that still sends it would otherwise block the request.
+const PAIRING_ROUTES = new Map([["/api/pair/complete", "POST"], ["/api/pair/status", "GET"]]);
 function answerPreflight(req, res, pathname) {
   const origin = req.headers.origin;
   const wanted = String(req.headers["access-control-request-method"] || "").toUpperCase();
@@ -370,24 +393,30 @@ function answerPreflight(req, res, pathname) {
   // about - so entitlement here is by ORIGIN only. The real request is still
   // judged on its token; this only decides whether the browser may send it.
   const knownOrigin = Boolean(origin) && cfgHasPairingFor(origin);
-  const pairingAttempt = Boolean(origin) && pathname === "/api/pair/complete" && pairing.mayAttemptPairing(origin);
+  const pairingAttempt = Boolean(origin) && PAIRING_ROUTES.has(pathname) && pairing.mayAttemptPairing(origin);
   if (!knownOrigin && !pairingAttempt) {
+    logRefusedHosted(req, `preflight: ${pairing.refusalReason(origin, false)}`);
     res.writeHead(403, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
     return;
   }
-  if (pathname === "/api/pair/complete" && wanted && wanted !== "POST") {
+  if (PAIRING_ROUTES.has(pathname) && wanted && wanted !== PAIRING_ROUTES.get(pathname)) {
+    logRefusedHosted(req, `preflight: ${wanted} is not the method of ${pathname}`);
     res.writeHead(403, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
     return;
   }
-  res.writeHead(204, {
+  const headers = {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, content-type",
     "Access-Control-Max-Age": "600",
     Vary: "Origin",
-  });
+  };
+  if (String(req.headers["access-control-request-private-network"] || "").toLowerCase() === "true") {
+    headers["Access-Control-Allow-Private-Network"] = "true";
+  }
+  res.writeHead(204, headers);
   res.end();
 }
 
@@ -405,6 +434,7 @@ function cfgHasPairingFor(origin) {
 function handlePairComplete(req, res) {
   const origin = req.headers.origin;
   if (!origin || !pairing.mayAttemptPairing(origin)) {
+    logRefusedHosted(req, origin ? "origin is not in hostedOrigins" : "a pairing without an Origin header");
     res.writeHead(403, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
     return;
@@ -418,6 +448,34 @@ function handlePairComplete(req, res) {
     });
     res.end(JSON.stringify(result));
   });
+}
+
+// The probe a hosted page runs first (status() in lib/pairing.js). Readable by
+// an origin on the hosted list or one holding a pairing, never by anyone
+// else: a stranger is refused like any other caller, with no CORS headers, so
+// a page off the list learns only what an opaque request already tells it,
+// that something answered. The local page may read it too.
+function handlePairStatus(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || origin === ALLOWED_ORIGIN) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ...pairing.status(null, ""), originAllowed: true, paired: false, local: true }));
+    return;
+  }
+  const token = bearerToken(req);
+  const body = pairing.status(origin, token);
+  if (!body.originAllowed) {
+    logRefusedHosted(req, pairing.refusalReason(origin, Boolean(token)));
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: false, error: "origin not allowed" }));
+    return;
+  }
+  res.writeHead(200, {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": origin,
+    Vary: "Origin",
+  });
+  res.end(JSON.stringify(body));
 }
 
 const server = http.createServer((req, res) => {
@@ -436,6 +494,7 @@ const server = http.createServer((req, res) => {
     // The one route a not-yet-paired hosted origin may reach, because there
     // is no way to become paired without it. Its own gate is inside.
     if (req.method === "POST" && p === "/api/pair/complete") return handlePairComplete(req, res);
+    if (req.method === "GET" && p === "/api/pair/status") return handlePairStatus(req, res);
     if (req.method === "GET") {
       caller = authorizeRead(req, res, p);
     } else {
@@ -1001,4 +1060,9 @@ server.listen(PORT, () => {
   const kind = bridge.deviceKind();
   console.log(`device: ${kind === "hid" ? "connected" : kind === "virtual" ? "virtual pad (no hardware attached)" : "NOT connected"}`);
   if (kind !== "hid" && bridge.deviceError) console.log(`  hid: ${bridge.deviceError}`);
+  // The hosted pages this bridge will pair with, said once at startup: a
+  // config.json written before a host was added keeps its old list, and this
+  // line is where that shows.
+  const hosted = pairing.hostedOrigins;
+  console.log(`hosted origins allowed to pair: ${hosted.length ? hosted.join(", ") : "none"}`);
 });

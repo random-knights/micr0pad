@@ -1089,7 +1089,15 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
   letter-spacing: 6px;
   text-align: center;
   padding: 10px 4px 6px;
-  user-select: all;
+}
+/* The code alone selects as one unit; the copy button beside it is not part
+   of the selection. */
+.pair-code .pair-value { user-select: all; }
+.pair-code .pair-copy {
+  font-size: 11px;
+  letter-spacing: 0;
+  margin-left: 10px;
+  vertical-align: middle;
 }
 .pair-code .pair-expiry {
   display: block;
