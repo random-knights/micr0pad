@@ -343,7 +343,7 @@ read the token.
 
 There is one deliberate way through that wall, and you open it by hand.
 
-A page on `https://rand0m.ai` is a different origin, so by default it is
+A page on `https://rand0m.ai` or `https://randomly.engineering` is a different origin, so by default it is
 refused exactly like any other site. To let it in, press **show pairing code**
 in the Hosted Pages box on this dashboard. The app puts an eight-character code
 on screen. Type that code into the hosted page. The page sends it back, the app
@@ -363,12 +363,14 @@ What each piece is doing:
   to every request and a page cannot forge it, so a token lifted from one site
   does not work from another.
 - **The list of sites that may even ask is fixed.** `hostedOrigins` in
-  `config.json`, shipping as `https://rand0m.ai` only. It is never a wildcard:
+  `config.json`, shipping as `https://rand0m.ai` and `https://randomly.engineering` only. It is never a wildcard:
   an entry that is not a plain `https://` origin is dropped rather than
   honored, and a list you have written yourself is never widened behind your
   back. A developer who needs to pair from another host (a staging copy of
   the site, say) adds its exact origin to that list by hand, as shown in
-  `docs/DEVELOPMENT.md`.
+  `docs/DEVELOPMENT.md`. An existing `config.json` keeps the list it already
+  has, so to pair from randomly.engineering with an older config, add it by
+  hand: `"hostedOrigins": ["https://rand0m.ai", "https://randomly.engineering"]`.
 
 **What a paired page can do:** everything the local dashboard can, with three
 exceptions. It reads pad and agent state, system metrics and the process table,
