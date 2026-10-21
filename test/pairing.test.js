@@ -127,12 +127,24 @@ test("the hosted origin list is never a wildcard", () => {
   assert.deepEqual(Pairing.normalizeHostedOrigins(undefined), DEFAULT_HOSTED_ORIGINS);
 });
 
-test("the shipped defaults are the production site only", () => {
-  // www.rand0m.ai redirects to the apex and never sends its own Origin, and a
+test("the shipped defaults are the two production sites only", () => {
+  // www hosts redirect to the apex and never send their own Origin, and a
   // staging host is something a developer adds to their own config.json.
-  assert.deepEqual(DEFAULT_HOSTED_ORIGINS, ["https://rand0m.ai"]);
+  assert.deepEqual(DEFAULT_HOSTED_ORIGINS, ["https://rand0m.ai", "https://randomly.engineering"]);
   const p = new Pairing({ pairings: [] });
   assert.equal(p.mayAttemptPairing("https://rand0m.ai"), true);
+  assert.equal(p.mayAttemptPairing("https://randomly.engineering"), true);
+  assert.equal(p.mayAttemptPairing("https://www.randomly.engineering"), false, "www redirects, never an Origin");
+  assert.equal(p.mayAttemptPairing("https://stg.randomly.engineering"), false, "no staging host ships");
+  assert.equal(p.mayAttemptPairing("https://abc-randomly-engineering.web.app"), false, "no staging host ships");
+  assert.equal(p.mayAttemptPairing("https://randomly.engineering.evil.test"), false);
+  assert.equal(p.mayAttemptPairing("https://notrandomly.engineering"), false);
+  assert.equal(p.mayAttemptPairing("http://randomly.engineering"), false, "http is refused");
+  const code = p.start(1000).code;
+  const paired = p.complete(code, "https://randomly.engineering", "randomly", 1100);
+  assert.equal(paired.ok, true);
+  assert.equal(p.match("https://randomly.engineering", paired.token).origin, "https://randomly.engineering");
+  assert.equal(p.match("https://rand0m.ai", paired.token), null, "a token is bound to its origin");
   assert.equal(p.mayAttemptPairing("https://stg.rand0m.ai"), false, "no staging host ships");
   assert.equal(p.mayAttemptPairing("https://abc-rand0m-ai.web.app"), false, "no staging host ships");
 });

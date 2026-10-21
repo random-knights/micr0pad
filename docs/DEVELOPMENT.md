@@ -280,8 +280,11 @@ The package name is `@randomknights/micr0pad` (no hyphen in the scope).
 
 ### Pairing from a staging host
 
-The shipped `hostedOrigins` is `["https://rand0m.ai"]` and nothing else
-(`www.rand0m.ai` redirects there, so it never sends its own Origin). The
+The shipped `hostedOrigins` is `["https://rand0m.ai",
+"https://randomly.engineering"]` and nothing else (`www.rand0m.ai` and
+`www.randomly.engineering` redirect to them, so they never send their own
+Origin). An existing `config.json` keeps the list it already has; it is never
+widened for you. The
 browser sends each host's own name as the Origin, so a pairing started from
 any other host, a staging copy of the site included, is refused with "origin
 is not in hostedOrigins" until that exact origin is listed. Add it to the
@@ -291,7 +294,14 @@ is not in hostedOrigins" until that exact origin is listed. Add it to the
 entry:
 
 ```json
-"hostedOrigins": ["https://rand0m.ai", "https://staging.example.com"],
+"hostedOrigins": ["https://rand0m.ai", "https://randomly.engineering", "https://staging.example.com"],
+```
+
+For randomly.engineering the staging hosts are opt-in lines of the same kind,
+never defaults. List the one you review on (or both) in the same array:
+
+```json
+"hostedOrigins": ["https://rand0m.ai", "https://randomly.engineering", "https://stg.randomly.engineering", "https://abc-randomly-engineering.web.app"],
 ```
 
 then restart the server. The startup line `hosted origins allowed to pair:`

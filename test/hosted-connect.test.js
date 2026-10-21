@@ -60,8 +60,8 @@ test("a refusal names the fix", () => {
   assert.match(p.refusalReason("https://rand0m.ai", true), /does not match/);
 });
 
-test("the defaults list the production site only and never a wildcard", () => {
-  assert.deepEqual(DEFAULT_HOSTED_ORIGINS, [HOSTED]);
+test("the defaults list the two production sites only and never a wildcard", () => {
+  assert.deepEqual(DEFAULT_HOSTED_ORIGINS, [HOSTED, "https://randomly.engineering"]);
   assert.equal(DEFAULT_HOSTED_ORIGINS.some((o) => o.includes("*")), false);
 });
 
@@ -153,7 +153,7 @@ test(
     const json = { "Content-Type": "application/json" };
 
     // One startup line with the allowed origins.
-    assert.match(log.text, /hosted origins allowed to pair: https:\/\/rand0m\.ai\r?\n/);
+    assert.match(log.text, /hosted origins allowed to pair: https:\/\/rand0m\.ai, https:\/\/randomly\.engineering\r?\n/);
 
     // A listed origin, unpaired: readable, and it says unpaired.
     const cold = await call(port, "/api/pair/status", { headers: { Origin: HOSTED } });
