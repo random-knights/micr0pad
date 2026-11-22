@@ -141,20 +141,20 @@ powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"
 npm run launcher:install
 ```
 
-That puts a **micr0pad** shortcut on your desktop. It opens a small window with
-the pad drawing looping in it. Click the pad and it:
+That puts a **micr0pad** shortcut on your desktop, with the pad drawing as its
+icon. Double-click it and, with no window of its own, it:
 
-1. starts the bridge if it is not already running, and leaves it running
-   after you close the window;
-2. says whether it found a pad or is running the virtual one;
-3. shows the four family colors on the six status keys as a hello. The bridge
+1. starts the bridge if it is not already running, and leaves it running;
+2. shows the four family colors on the six status keys as a hello. The bridge
    paints the keys from agent state again on its next poll, so the hello lasts
-   a few seconds and saves nothing. The window says the colors were sent; only
-   your eyes on the pad can say they lit;
-4. opens the hosted pairing page when that page is open to the public, and
+   a few seconds and saves nothing;
+3. opens the hosted pairing page when that page is open to the public, and
    `http://localhost:4120` when it is not.
 
-`npm run launcher` opens the same window without installing anything.
+If the bridge cannot start, a message box says why. The icon is a still frame:
+a Windows shortcut icon cannot animate.
+
+`npm run launcher` does the same thing without installing anything.
 `npm run launcher:install -- -Remove` takes the shortcut away again. Run the
 install again if you move the checkout: the shortcut stores its path. The
 launcher is a checkout tool and is not part of the npm package.

@@ -310,12 +310,12 @@ wildcard: an entry that is not a plain https origin is dropped on load.
 
 ## The desktop launcher
 
-`launcher/launcher.js` serves one page (`launcher/index.html`, with the looping
-`launcher/pad.webp`) on 127.0.0.1 at a port the OS picks, and opens it as a
-bare app window in Edge or Chrome, or in the default browser when neither is
-installed. One click on the pad runs `go()`: start the bridge detached if
-`/api/state` does not answer, read the device kind, paint the six status keys
-in the family colors, then open the hosted pairing page or the local app.
+`launcher/launcher.js` is what the desktop shortcut runs, and it has no window
+and no server of its own. It runs `go()` once and exits: start the bridge
+detached if `/api/state` does not answer, read the device kind, paint the six
+status keys in the family colors, then open the hosted pairing page or the
+local app in the default browser. `launcher/micr0pad.ico` is the shortcut's
+icon, a still frame of the animated pad drawing on the docs site.
 
 Three decisions:
 
@@ -334,10 +334,10 @@ Three decisions:
   them longer would mean pausing the bridge, and a pad that stops showing agent
   state to show a logo has its priorities backwards.
 
-The window's start route carries a per-run random path segment and refuses any
-other origin, and no response sets `Access-Control-Allow-Origin`
-(`test/launcher-app.test.js`). The launcher exits three seconds after its last
-window closes; the bridge keeps running.
+A failure to start is the only thing it ever puts on screen: one message box,
+with the text passed in an environment variable so nothing in an error is
+parsed as script. `test/launcher-app.test.js` runs `go()` with every step
+injected, so no bridge starts and no browser opens under test.
 
 ## Where per-user files live
 

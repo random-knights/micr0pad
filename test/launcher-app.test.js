@@ -1,14 +1,15 @@
 "use strict";
 // The desktop launcher (launcher/launcher.js). What these hold:
 //
-//   - where one click lands is decided by the site's own feature list, and
+//   - where the click lands is decided by the site's own feature list, and
 //     anything short of "live" is the local app;
 //   - the hello uses the family colors and only the six status keys;
-//   - the window server presses nothing for a stranger: the start route needs
-//     the per-run path segment, another origin is refused, and no response
-//     carries Access-Control-Allow-Origin.
+//   - the double-click runs its steps in order, opens exactly one page, and
+//     a failed hello does not stop the app from opening;
+//   - the shortcut icon is a real .ico, and the launcher stays out of the
+//     npm package.
 //
-// No bridge is started and no browser is opened: the click is injected.
+// No bridge is started and no browser is opened: every step is injected.
 
 const test = require("node:test");
 const assert = require("node:assert");
@@ -51,83 +52,73 @@ test("the hello paints the six status keys in the family colors", () => {
   assert.deepEqual(launcher.HELLO_KEYS.map((k) => k.keyID), pad.agentKeyIDs);
   const family = new Set(Object.values(launcher.FAMILY));
   for (const { color } of launcher.HELLO_KEYS) assert.ok(family.has(color), `${color} is a family color`);
-  assert.equal(launcher.packed("#ff4124"), 0xff4124);
   assert.equal(launcher.packed("#ff4124"), pad.packedRGB("#ff4124"));
 });
 
-test("the app-window browser is found from the environment, or not at all", () => {
-  const env = { ProgramFiles: "P", "ProgramFiles(x86)": "X", LOCALAPPDATA: "L" };
-  const edge = path.join("X", "Microsoft", "Edge", "Application", "msedge.exe");
-  const chrome = path.join("P", "Google", "Chrome", "Application", "chrome.exe");
-  assert.equal(launcher.findAppBrowser(env, (p) => p === edge || p === chrome, "win32"), edge);
-  assert.equal(launcher.findAppBrowser(env, (p) => p === chrome, "win32"), chrome);
-  assert.equal(launcher.findAppBrowser(env, () => false, "win32"), null);
-  assert.equal(launcher.findAppBrowser(env, () => true, "linux"), null);
-});
-
-function listen(server) {
-  return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server.address().port)));
+function fakes(over = {}) {
+  const calls = [];
+  const opened = [];
+  return {
+    calls,
+    opened,
+    deps: {
+      ensureBridge: async () => { calls.push("bridge"); return { started: true, state: { device: { kind: "hid", model: "pad" } } }; },
+      sayHello: async () => { calls.push("hello"); },
+      siteFeatures: async () => { calls.push("site"); return null; },
+      openInBrowser: (url) => { calls.push("open"); opened.push(url); },
+      ...over,
+    },
+  };
 }
 
-test("the window server starts only for its own page", async (t) => {
-  let runs = 0;
-  const { server, nonce } = launcher.createServer({
-    nonce: "a".repeat(32),
-    run: async () => { runs += 1; return { ok: true }; },
-  });
-  const port = await listen(server);
-  t.after(() => new Promise((r) => { server.closeAllConnections(); server.close(r); }));
-  const base = `http://127.0.0.1:${port}`;
-
-  const page = await fetch(base + "/");
-  assert.equal(page.status, 200);
-  assert.equal(page.headers.get("access-control-allow-origin"), null);
-  const html = await page.text();
-  assert.ok(html.includes(`/${nonce}`), "the page is handed the per-run segment");
-  assert.ok(!html.includes("__NONCE__"), "no placeholder is left in the page");
-  assert.match(html, /<title>0P \| Micr0Pad<\/title>/);
-
-  const art = await fetch(base + "/pad.webp");
-  assert.equal(art.status, 200);
-  assert.equal(art.headers.get("content-type"), "image/webp");
-  await art.arrayBuffer();
-
-  // Without the segment there is no start route at all.
-  assert.equal((await fetch(base + "/go", { method: "POST" })).status, 404);
-  assert.equal((await fetch(base + "/wrong/go", { method: "POST" })).status, 404);
-  // With it, but from another origin: refused before anything runs.
-  const cross = await fetch(`${base}/${nonce}/go`, { method: "POST", headers: { Origin: "https://example.com" } });
-  assert.equal(cross.status, 403);
-  assert.equal(cross.headers.get("access-control-allow-origin"), null);
-  assert.equal(runs, 0);
-
-  const own = await fetch(`${base}/${nonce}/go`, { method: "POST", headers: { Origin: base } });
-  assert.equal(own.status, 200);
-  assert.equal(own.headers.get("access-control-allow-origin"), null);
-  assert.deepEqual(await own.json(), { ok: true });
-  assert.equal(runs, 1);
+test("the double-click starts the bridge, says hello, then opens one page", async () => {
+  const f = fakes();
+  const out = await launcher.go(f.deps);
+  assert.deepEqual(f.calls, ["bridge", "hello", "site", "open"]);
+  assert.equal(f.opened.length, 1);
+  assert.equal(out.bridge, "started");
+  assert.equal(out.device, "hid");
+  assert.equal(out.lights, "sent");
+  assert.equal(out.destination.kind, "local");
 });
 
-test("a failed start is reported, not swallowed", async (t) => {
-  const { server, nonce } = launcher.createServer({
-    nonce: "b".repeat(32),
-    run: async () => { throw new Error("the bridge did not answer"); },
-  });
-  const port = await listen(server);
-  t.after(() => new Promise((r) => { server.closeAllConnections(); server.close(r); }));
-  const res = await fetch(`http://127.0.0.1:${port}/${nonce}/go`, { method: "POST" });
-  assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { ok: false, error: "the bridge did not answer" });
+test("a live site sends the click to the hosted page", async () => {
+  const f = fakes({ siteFeatures: async () => ({ features: [{ id: "micr0pad", state: "live", href: "/tools/micr0pad/" }] }) });
+  await launcher.go(f.deps);
+  assert.deepEqual(f.opened, ["https://randomly.engineering/tools/micr0pad/"]);
 });
 
-test("the pad drawing is an animated webp that loops forever", () => {
-  const art = fs.readFileSync(path.join(__dirname, "..", "launcher", "pad.webp"));
-  assert.equal(art.subarray(0, 4).toString("latin1"), "RIFF");
-  assert.equal(art.subarray(8, 12).toString("latin1"), "WEBP");
-  const anim = art.indexOf(Buffer.from("ANIM", "latin1"));
-  assert.ok(anim > 0, "an ANIM chunk marks an animated file");
-  // ANIM payload: 4 bytes background color, then a 16-bit loop count. 0 is forever.
-  assert.equal(art.readUInt16LE(anim + 8 + 4), 0);
+test("a failed hello is reported and the app still opens", async () => {
+  const f = fakes({ sayHello: async () => { throw new Error("401 from /api/light"); } });
+  const out = await launcher.go(f.deps);
+  assert.equal(out.lights, "failed: 401 from /api/light");
+  assert.equal(f.opened.length, 1);
+});
+
+test("with no device at all there is no hello", async () => {
+  const f = fakes({ ensureBridge: async () => ({ started: false, state: { device: { kind: "none", model: null } } }) });
+  const out = await launcher.go(f.deps);
+  assert.equal(out.lights, "skipped");
+  assert.equal(out.bridge, "already running");
+  assert.ok(!f.calls.includes("hello"));
+});
+
+test("a bridge that never answers opens nothing", async () => {
+  const f = fakes({ ensureBridge: async () => { throw new Error("the bridge did not answer"); } });
+  await assert.rejects(launcher.go(f.deps), /did not answer/);
+  assert.equal(f.opened.length, 0);
+});
+
+test("the shortcut icon is an .ico with a 256 px image", () => {
+  const ico = fs.readFileSync(path.join(__dirname, "..", "launcher", "micr0pad.ico"));
+  assert.equal(ico.readUInt16LE(0), 0, "reserved");
+  assert.equal(ico.readUInt16LE(2), 1, "type 1 is an icon");
+  const count = ico.readUInt16LE(4);
+  assert.ok(count >= 1);
+  // In a directory entry a width byte of 0 means 256.
+  const widths = Array.from({ length: count }, (_, i) => ico[6 + i * 16] || 256);
+  assert.ok(widths.includes(256), `sizes: ${widths.join(", ")}`);
+  assert.ok(widths.includes(16), `sizes: ${widths.join(", ")}`);
 });
 
 test("the launcher is a checkout tool and stays out of the npm package", () => {
