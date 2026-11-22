@@ -135,6 +135,33 @@ Without it the pad still runs and the six slots simply sit idle:
 powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"
 ```
 
+### A desktop launcher (Windows, from a checkout)
+
+```powershell
+npm run launcher:install
+```
+
+That puts a **micr0pad** shortcut on your desktop, with the pad drawing as its
+icon. Double-click it and, with no window of its own, it:
+
+1. starts the bridge if it is not already running, and leaves it running;
+2. opens the hosted pairing page when that page is open to the public, and
+   `http://localhost:4120` when it is not.
+
+While the bridge runs, a status key with no agent on it rests in a family
+color: the top two and the first of the row of four in `#ff4124`, then
+`#f45d43`, `#e97862` and `#faafa5`. The outer light rests in `#ff4124`, and
+the pad on the page shows the same colors. A key with an agent shows that
+agent. Set `"restLights": "off"` in `config.json` to keep an empty pad dark.
+
+If the bridge cannot start, a message box says why. The icon is a still frame:
+a Windows shortcut icon cannot animate.
+
+`npm run launcher` does the same thing without installing anything.
+`npm run launcher:install -- -Remove` takes the shortcut away again. Run the
+install again if you move the checkout: the shortcut stores its path. The
+launcher is a checkout tool and is not part of the npm package.
+
 ### Before you flash anything
 
 Two of the setup scripts write to the device's flash memory. Back up the keymap

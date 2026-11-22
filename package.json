@@ -59,6 +59,8 @@
     "add-layers": "node add-layers.js",
     "bind-dial-joy": "node bind-dial-joy.js",
     "lights-off": "node lights-off.js",
+    "launcher": "node launcher/launcher.js",
+    "launcher:install": "powershell -NoProfile -ExecutionPolicy Bypass -File launcher/install-shortcut.ps1",
     "check-pack": "node scripts/check-pack.js",
     "prepublishOnly": "node scripts/check-pack.js"
   },

@@ -532,6 +532,7 @@ const server = http.createServer((req, res) => {
         slot: x.slotCfg.slot,
         name: x.slotCfg.name,
         keyID: config_agentKeyIDs()[x.slotCfg.slot],
+        light: bridge.lightOf(x),
         agent: x.agent ? { agent: x.agent.agent, status: require("./lib/herdr").statusOf(x.agent), focused: x.agent.focused, cwd: x.agent.cwd, paneID: x.agent.paneID } : null,
       }));
       res.writeHead(200, { "Content-Type": "application/json" });

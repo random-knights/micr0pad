@@ -308,6 +308,45 @@ then restart the server. The startup line `hosted origins allowed to pair:`
 shows the list it loaded. `https` only, no path, no trailing slash, never a
 wildcard: an entry that is not a plain https origin is dropped on load.
 
+## The desktop launcher
+
+`launcher/launcher.js` is what the desktop shortcut runs, and it has no window
+and no server of its own. It runs `go()` once and exits: start the bridge
+detached if `/api/state` does not answer, then open the hosted pairing page or
+the local app in the default browser. `launcher/micr0pad.ico` is the shortcut's
+icon, a still frame of the animated pad drawing on the docs site.
+
+Three decisions:
+
+- **It adds nothing to `server.js`.** The only thing it asks the bridge is
+  `/api/state`, to learn whether it is up. It reads no token and sends no
+  light.
+- **The site decides where the click lands.** The launcher reads
+  `/data/features.json` from the hosted site and opens the pairing page only
+  when the `micr0pad` entry says `"state": "live"`. Unreadable, missing or any
+  other state means the local app. Nothing in this repo changes on the day the
+  page opens.
+- **The family colors belong to the bridge, not the launcher.** `paintSlots`
+  rewrites every key on every poll, so a color the launcher sent lasted at
+  most `pollIntervalMs`. `mapper.threadFor` now rests an empty slot in its
+  family color (`pad.restColors`, turned off with `"restLights": "off"`), so
+  the colors hold for as long as no agent takes the key. The outer light
+  rests in the primary color the same way (`mapper.zoneFor`).
+- **The page mirrors what was sent.** `/api/state` and the `state` event
+  carry a `light` per slot (`bridge.lightOf`): the color the key was sent, or
+  null when it is dark. The page draws an empty key from that, so the mirror
+  never holds a second opinion about a resting color.
+- **Zones first, threads second.** Each poll writes `v.oai.rgbcfg` and then
+  `v.oai.thstatus`, so the per-key colors are the last word.
+- **Thread frames use the short fields.** `threadFor` used to emit `color`,
+  `brightness`, `effect` and `speed`. The firmware reads `c`, `b`, `e` and
+  `s` (a hand-sent short frame lit the pad) and answers ok to anything.
+
+A failure to start is the only thing it ever puts on screen: one message box,
+with the text passed in an environment variable so nothing in an error is
+parsed as script. `test/launcher-app.test.js` runs `go()` with every step
+injected, so no bridge starts and no browser opens under test.
+
 ## Where per-user files live
 
 `lib/paths.js` decides, and every reader and writer goes through it:

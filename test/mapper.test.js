@@ -45,9 +45,26 @@ test("assign consumes the first matching unused agent, so two slots with the sam
   assert.equal(assigned[3].agent, null, "no gemini agent: the slot stays empty");
 });
 
-test("threadFor returns a dark frame for an empty slot", () => {
-  const t = mapper.threadFor(null, { slot: 2 });
-  assert.deepEqual(t, { id: pad.agentKeyIDs[2], brightness: 0, effect: 0 });
+test("threadFor rests an empty slot in its family color", () => {
+  const family = [0xff4124, 0xff4124, 0xff4124, 0xf45d43, 0xe97862, 0xfaafa5];
+  assert.deepEqual(pad.restColors, family);
+  for (let slot = 0; slot < 6; slot++) {
+    assert.deepEqual(mapper.threadFor(null, { slot }), { id: pad.agentKeyIDs[slot], c: family[slot], b: 1, e: 1, s: 0.5 });
+  }
+});
+
+test("threadFor returns a dark frame for an empty slot when rest lights are off", () => {
+  assert.deepEqual(mapper.threadFor(null, { slot: 2 }, "off"), { id: pad.agentKeyIDs[2], b: 0, e: 0 });
+});
+
+test("every thread frame uses only the fields the firmware reads", () => {
+  const known = new Set(["id", "c", "b", "e", "s"]);
+  const frames = [
+    mapper.threadFor(null, { slot: 0 }),
+    mapper.threadFor(null, { slot: 0 }, "off"),
+    mapper.threadFor(agent({ status: "working" }), { slot: 1, color: "#00ff00" }),
+  ];
+  for (const f of frames) for (const k of Object.keys(f)) assert.ok(known.has(k), `unknown thread field ${k}`);
 });
 
 test("threadFor uses the status color/effect for each of the 4 known states plus unknown", () => {
@@ -55,25 +72,31 @@ test("threadFor uses the status color/effect for each of the 4 known states plus
     const t = mapper.threadFor(agent({ status }), { slot: 0 });
     const expectState = ["idle", "working", "blocked", "done"].includes(status) ? status : "unknown";
     const style = pad.statusColors[expectState];
-    assert.equal(t.color, style.color, `status ${status} -> ${expectState}`);
-    assert.equal(t.effect, style.effect);
+    assert.equal(t.c, style.color, `status ${status} -> ${expectState}`);
+    assert.equal(t.e, style.effect);
   }
 });
 
 test("threadFor's per-slot color override wins over the status color, but the effect still follows state", () => {
   const t = mapper.threadFor(agent({ status: "working" }), { slot: 0, color: "#00ff00" });
-  assert.equal(t.color, 0x00ff00);
-  assert.equal(t.effect, pad.statusColors.working.effect);
+  assert.equal(t.c, 0x00ff00);
+  assert.equal(t.e, pad.statusColors.working.effect);
 });
 
 test("threadFor falls back to the status color when the override hex is unparsable", () => {
   const t = mapper.threadFor(agent({ status: "idle" }), { slot: 0, color: "not-a-color" });
-  assert.equal(t.color, pad.statusColors.idle.color);
+  assert.equal(t.c, pad.statusColors.idle.color);
 });
 
 test("zoneFor returns null when no slot has an agent (nothing to light)", () => {
   const assigned = [{ slotCfg: { slot: 0 }, agent: null }];
   assert.equal(mapper.zoneFor(assigned, pad.underglow), null);
+});
+
+test("zoneFor rests the outer light in the primary family color when asked to", () => {
+  const assigned = [{ slotCfg: { slot: 0 }, agent: null }];
+  assert.deepEqual(mapper.zoneFor(assigned, pad.underglow, "family"), { e: 1, b: 1, s: 0.5, m: 1, c: 0xff4124 });
+  assert.equal(mapper.zoneFor(assigned, pad.underglow, "off"), null);
 });
 
 test("zoneFor: worst-of-six - one blocked among five idle drives the underglow red", () => {

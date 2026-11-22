@@ -13,7 +13,7 @@ const virtualdevice = require("../lib/virtualdevice");
 const { METHOD_NOT_FOUND } = require("../lib/device");
 
 // A thread frame in the shape lib/mapper.js produces.
-const frame = (id, extra) => Object.assign({ id, color: 0x7c4dff, brightness: 1, effect: 1, speed: 0.5 }, extra);
+const frame = (id, extra) => Object.assign({ id, c: 0x7c4dff, b: 1, e: 1, s: 0.5 }, extra);
 
 test("it describes itself as virtual and never claims a firmware version", async () => {
   const dev = virtualdevice.open();
@@ -23,10 +23,10 @@ test("it describes itself as virtual and never claims a firmware version", async
 
 test("v.oai.thstatus accepts the mapper's frames and keeps them", async () => {
   const dev = virtualdevice.open();
-  assert.deepEqual(await dev.call("v.oai.thstatus", [frame(0), frame(1, { color: 0xff4124 })]), { ok: 1 });
+  assert.deepEqual(await dev.call("v.oai.thstatus", [frame(0), frame(1, { c: 0xff4124 })]), { ok: 1 });
   const shown = dev.snapshot();
   assert.deepEqual(shown.threads.map((t) => t.id), [0, 1]);
-  assert.equal(shown.threads[1].color, 0xff4124);
+  assert.equal(shown.threads[1].c, 0xff4124);
 });
 
 test("a later partial frame merges into the key rather than replacing it", async () => {
@@ -36,7 +36,7 @@ test("a later partial frame merges into the key rather than replacing it", async
   await dev.call("v.oai.thstatus", [{ id: 3, b: 0, e: 0 }]);
   const [key3] = dev.snapshot().threads;
   assert.equal(key3.b, 0);
-  assert.equal(key3.color, 0x7c4dff, "the color it was painted with is still there");
+  assert.equal(key3.c, 0x7c4dff, "the color it was painted with is still there");
 });
 
 test("v.oai.rgbcfg keeps both zones and lets one be written alone", async () => {
