@@ -347,6 +347,43 @@ with the text passed in an environment variable so nothing in an error is
 parsed as script. `test/launcher-app.test.js` runs `go()` with every step
 injected, so no bridge starts and no browser opens under test.
 
+## Sessions that report themselves
+
+Herdr is asked; a session outside Herdr tells. `hooks/session-report.js` is a
+hook target that turns an agent's own event into one of four states and POSTs
+`{ provider, id, status, cwd, title }` to `/api/session`. `lib/sessions.js`
+holds the roster in memory, and `bridge.refresh()` appends it to Herdr's list
+before `mapper.assign`, so slot matching, colors, the outer light and the page
+are the code they always were.
+
+- **Local only, with the token.** `/api/session` is in `LOCAL_ONLY_ROUTES`
+  and takes the pairing token like every mutation. The hook reads the token
+  from the bridge's `config.json` as the same user and never prints it.
+- **The hook never gets in the way.** It exits 0 and prints nothing on every
+  path, with an 800 ms cap on the request. A status light is not worth a
+  blocked or confused session.
+- **It reads no content.** The body is built from `hook_event_name`,
+  `session_id` and `cwd`. The transcript path is in the payload and is not
+  opened. A test pins the body against a payload that carries a prompt and a
+  tool input.
+- **A report repaints at once.** A changed roster calls `bridge.refresh()`
+  straight away; measured here the pad state followed in under 100 ms.
+- **Stale sessions are dropped** after `sessions.staleMs` (six hours, floor
+  one minute). A crashed session never says goodbye.
+- **A key with no Herdr tab says so.** Pressing the key of a reported session
+  emits a notice and focuses nothing. Handing Herdr a provider name would
+  focus some other agent.
+- **Blocked overrides the slot color; working pulses.** Every default slot has
+  its own color, so before this the state only showed in the effect and
+  working and done were both solid. Working is now effect 6, and blocked
+  always takes the blocked red.
+- **Adding a provider** is one mapper function in `MAPPERS` in the hook and
+  whatever that provider calls a hook. The bridge needs nothing.
+
+`scripts/session-hooks.js` edits the user's Claude Code `settings.json`: only
+the `hooks` key, only entries whose command names `session-report.js`, a
+backup first, and nothing at all without `--write`.
+
 ## Where per-user files live
 
 `lib/paths.js` decides, and every reader and writer goes through it:

@@ -128,12 +128,47 @@ rest) run from a checkout.
 You need Node 18 or newer. If yours is older the app says so, with your version
 number, instead of failing later somewhere confusing.
 
-Agent lights need [Herdr](https://herdr.dev) installed and on your `PATH`.
-Without it the pad still runs and the six slots simply sit idle:
+Agent lights have two sources, and you can use either or both.
+
+**Herdr.** Agents that run inside [Herdr](https://herdr.dev) are read from it,
+so it needs to be installed and on your `PATH`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"
 ```
+
+**Sessions that report themselves.** A Claude Code session anywhere on this
+machine (the desktop app, an IDE, a plain terminal) can tell the bridge its own
+state through a hook, with no Herdr:
+
+```powershell
+npm run session-hooks
+```
+
+That prints what it would add to your Claude Code `settings.json` and writes
+nothing. `npm run session-hooks -- --write` backs the file up and adds the
+hooks; `npm run session-hooks -- --remove --write` takes them out again. Other
+hooks in the file are left as they are. Sessions started after that light the
+first free `claude` key:
+
+| the session is | the key shows |
+|---|---|
+| waiting for you to type | its slot color, steady |
+| working | its slot color, pulsing |
+| stopped to ask permission | red, breathing, whatever its slot color |
+| finished a turn | its slot color, steady |
+| closed | the resting family color again |
+
+The hook sends the provider name, the session id, the state, the folder path
+and the folder's name to `localhost`, and nothing else: no prompt, no tool
+input, no output. It makes no model call and costs no tokens. It adds one
+short `node` process to each tool call (about a tenth of a second here). If the
+bridge is not running it does nothing. A session that crashes without saying
+goodbye is dropped after six hours of silence. Other providers get a key the
+same way once they have a reporter; Claude Code is the one that ships.
+
+Without either source the pad still runs and the six keys rest in the family
+colors.
 
 ### A desktop launcher (Windows, from a checkout)
 
@@ -399,7 +434,7 @@ What each piece is doing:
   has, so to pair from randomly.engineering with an older config, add it by
   hand: `"hostedOrigins": ["https://rand0m.ai", "https://randomly.engineering"]`.
 
-**What a paired page can do:** everything the local dashboard can, with three
+**What a paired page can do:** everything the local dashboard can, with four
 exceptions. It reads pad and agent state, system metrics and the process table,
 and it can save config, drive the lights and run an action key. Pairing a page
 is handing it your pad, not lending it a window.
@@ -411,6 +446,7 @@ is handing it your pad, not lending it a window.
 | `/api/pairing-token` | it hands out the LOCAL page's token; giving it away would let a hosted page act as the local page, which is what pairing replaces |
 | `/api/pair/start` | minting codes is how pairings are created, and only the person at the machine creates one |
 | `/api/sys/kill` | ending a process is a thing you do at the machine it happens on |
+| `/api/session` | it is how a session on this machine reports its own state; a hosted page has no session here to speak for |
 
 **Revoking.** Press **revoke** next to a pairing here, or **disconnect** on the
 hosted page. Either end cuts it, and the token stops working immediately; a

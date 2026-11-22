@@ -10,6 +10,7 @@ const config = require("./lib/config");
 const paths = require("./lib/paths");
 const { Pairing } = require("./lib/pairing");
 const { MicropadBridge } = require("./lib/bridge");
+const { Sessions } = require("./lib/sessions");
 
 const PORT = process.env.RK_MICROPAD_PORT || 4120;
 const PUBLIC = path.join(__dirname, "public");
@@ -40,11 +41,17 @@ const pairing = new Pairing(cfg, { persist: (list) => config.savePairings(list) 
 //                       capability and ending a process is not one; the owner
 //                       does that from the machine it happens on.
 //
+//   /api/session        is how a session on THIS machine reports its own
+//                       state (hooks/session-report.js). A hosted page has no
+//                       session here to speak for, and one that could post
+//                       would be able to light a key for work that is not
+//                       happening.
+//
 // Everything else - the reads, the config writes, the light and keymap
 // routes - is the same surface the local page has. README says so in the
 // security section, because a paired page being able to run an action key is
 // a real consequence of pairing and not a footnote.
-const LOCAL_ONLY_ROUTES = new Set(["/api/pairing-token", "/api/pair/start", "/api/sys/kill"]);
+const LOCAL_ONLY_ROUTES = new Set(["/api/pairing-token", "/api/pair/start", "/api/sys/kill", "/api/session"]);
 
 // GET /api/config and /api/state echo the live config back to the page;
 // strip the token before it ever reaches a JSON response.
@@ -285,7 +292,9 @@ async function flashPad() {
 }
 
 const launcher = require("./lib/launcher");
-const bridge = new MicropadBridge(cfg);
+// Sessions that report themselves: in memory, gone on restart.
+const sessions = new Sessions(cfg.sessions || {});
+const bridge = new MicropadBridge(cfg, { sessions });
 // One process owns the pad's HID handle. RK_MICROPAD_NO_DEVICE brings the HTTP
 // server up without claiming it, so a test can ask the API questions on a
 // machine where the real pad server is already running. It disables the
@@ -533,7 +542,7 @@ const server = http.createServer((req, res) => {
         name: x.slotCfg.name,
         keyID: config_agentKeyIDs()[x.slotCfg.slot],
         light: bridge.lightOf(x),
-        agent: x.agent ? { agent: x.agent.agent, status: require("./lib/herdr").statusOf(x.agent), focused: x.agent.focused, cwd: x.agent.cwd, paneID: x.agent.paneID } : null,
+        agent: x.agent ? { agent: x.agent.agent, status: require("./lib/herdr").statusOf(x.agent), focused: x.agent.focused, cwd: x.agent.cwd, paneID: x.agent.paneID, title: x.agent.title || "", source: x.agent.source || "herdr" } : null,
       }));
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
@@ -1031,6 +1040,20 @@ const server = http.createServer((req, res) => {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: false, error: e.message }));
       }
+    });
+    return;
+  }
+
+  // A session on this machine reporting its own state. Local callers only
+  // (LOCAL_ONLY_ROUTES), with the pairing token like every other mutation.
+  // A report that changes the roster repaints at once, so the pad follows the
+  // session in well under a poll interval.
+  if (req.method === "POST" && p === "/api/session") {
+    readJsonBody(req, res, (parsed) => {
+      const result = sessions.report(parsed, Date.now());
+      res.writeHead(result.ok ? 200 : 400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(result));
+      if (result.ok && result.changed && bridge.running) bridge.refresh().catch(() => {});
     });
     return;
   }
