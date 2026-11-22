@@ -3,9 +3,8 @@
 //
 //   - where the click lands is decided by the site's own feature list, and
 //     anything short of "live" is the local app;
-//   - the hello uses the family colors and only the six status keys;
-//   - the double-click runs its steps in order, opens exactly one page, and
-//     a failed hello does not stop the app from opening;
+//   - the double-click runs its steps in order and opens exactly one page;
+//   - it sends no light of its own;
 //   - the shortcut icon is a real .ico, and the launcher stays out of the
 //     npm package.
 //
@@ -16,7 +15,6 @@ const assert = require("node:assert");
 const fs = require("fs");
 const path = require("path");
 const launcher = require("../launcher/launcher");
-const pad = require("../lib/pad");
 
 const BRIDGE = "http://localhost:4120";
 
@@ -47,14 +45,6 @@ test("the hosted origin is one the bridge pairs with by default", () => {
   assert.ok(DEFAULT_HOSTED_ORIGINS.includes(launcher.HOSTED_ORIGIN));
 });
 
-test("the hello paints the six status keys in the family colors", () => {
-  assert.deepEqual(launcher.FAMILY, { app: "#ff4124", org: "#f45d43", llc: "#e97862", xyz: "#faafa5" });
-  assert.deepEqual(launcher.HELLO_KEYS.map((k) => k.keyID), pad.agentKeyIDs);
-  const family = new Set(Object.values(launcher.FAMILY));
-  for (const { color } of launcher.HELLO_KEYS) assert.ok(family.has(color), `${color} is a family color`);
-  assert.equal(launcher.packed("#ff4124"), pad.packedRGB("#ff4124"));
-});
-
 function fakes(over = {}) {
   const calls = [];
   const opened = [];
@@ -63,7 +53,6 @@ function fakes(over = {}) {
     opened,
     deps: {
       ensureBridge: async () => { calls.push("bridge"); return { started: true, state: { device: { kind: "hid", model: "pad" } } }; },
-      sayHello: async () => { calls.push("hello"); },
       siteFeatures: async () => { calls.push("site"); return null; },
       openInBrowser: (url) => { calls.push("open"); opened.push(url); },
       ...over,
@@ -71,14 +60,13 @@ function fakes(over = {}) {
   };
 }
 
-test("the double-click starts the bridge, says hello, then opens one page", async () => {
+test("the double-click starts the bridge, then opens one page", async () => {
   const f = fakes();
   const out = await launcher.go(f.deps);
-  assert.deepEqual(f.calls, ["bridge", "hello", "site", "open"]);
+  assert.deepEqual(f.calls, ["bridge", "site", "open"]);
   assert.equal(f.opened.length, 1);
   assert.equal(out.bridge, "started");
   assert.equal(out.device, "hid");
-  assert.equal(out.lights, "sent");
   assert.equal(out.destination.kind, "local");
 });
 
@@ -88,19 +76,18 @@ test("a live site sends the click to the hosted page", async () => {
   assert.deepEqual(f.opened, ["https://randomly.engineering/tools/micr0pad/"]);
 });
 
-test("a failed hello is reported and the app still opens", async () => {
-  const f = fakes({ sayHello: async () => { throw new Error("401 from /api/light"); } });
+test("with no device at all the app still opens", async () => {
+  const f = fakes({ ensureBridge: async () => ({ started: false, state: { device: { kind: "none", model: null } } }) });
   const out = await launcher.go(f.deps);
-  assert.equal(out.lights, "failed: 401 from /api/light");
+  assert.equal(out.device, "none");
+  assert.equal(out.bridge, "already running");
   assert.equal(f.opened.length, 1);
 });
 
-test("with no device at all there is no hello", async () => {
-  const f = fakes({ ensureBridge: async () => ({ started: false, state: { device: { kind: "none", model: null } } }) });
-  const out = await launcher.go(f.deps);
-  assert.equal(out.lights, "skipped");
-  assert.equal(out.bridge, "already running");
-  assert.ok(!f.calls.includes("hello"));
+test("the launcher sends no light: the family colors are the bridge's own", () => {
+  const src = fs.readFileSync(path.join(__dirname, "..", "launcher", "launcher.js"), "utf8");
+  assert.ok(!src.includes('"/api/light"') && !src.includes("/api/light`"), "no call to /api/light");
+  assert.ok(!src.includes("pairing-token"), "no read of the local token");
 });
 
 test("a bridge that never answers opens nothing", async () => {

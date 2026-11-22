@@ -7,21 +7,19 @@
 // One double-click:
 //   1. starts the bridge (bin/micr0pad.js) if nothing answers on its port,
 //      and leaves it running;
-//   2. shows the family colors on the six status keys, once, as a hello. The
-//      bridge repaints the keys from agent state on its next poll, so the
-//      hello lasts one poll interval and changes nothing that is saved;
-//   3. opens the hosted pairing page when the site says that page is live,
+//   2. opens the hosted pairing page when the site says that page is live,
 //      and the local app otherwise. The site's own feature list decides, so
 //      nothing here has to be edited on the day the page opens.
 // Then it exits. If the bridge cannot be started it says so in a message box,
 // because a shortcut that does nothing and says nothing is the worst outcome.
 //
+// The family colors on the keys are the bridge's own doing (lib/mapper.js
+// rests an empty slot in its family color), so they are there for as long as
+// the bridge runs and this file sends no light at all.
+//
 // What this file is NOT: a second way into the bridge. It adds no route and
-// no header to server.js. It reads state the way the local page does, and it
-// lights the keys through the same /api/light the local page uses, with the
-// local token the bridge hands to its own origin. It runs on the machine the
-// bridge runs on, as the same user, which is the trust the bridge already
-// extends to anything that can read its config file.
+// no header to server.js, and the only thing it asks the bridge is the public
+// /api/state, to learn whether it is up.
 
 const path = require("path");
 const { spawn } = require("child_process");
@@ -35,23 +33,6 @@ const BRIDGE_URL = `http://localhost:${BRIDGE_PORT}`;
 const HOSTED_ORIGIN = "https://randomly.engineering";
 const FEATURES_PATH = "/data/features.json";
 const FEATURE_ID = "micr0pad";
-
-// The family link colors, in the order the site footer lists them: the app,
-// then org, llc and xyz. Six keys and four colors, so the row of four takes
-// one each and the two keys above it take the primary.
-const FAMILY = { app: "#ff4124", org: "#f45d43", llc: "#e97862", xyz: "#faafa5" };
-const HELLO_KEYS = [
-  { keyID: 0, color: FAMILY.app },
-  { keyID: 1, color: FAMILY.app },
-  { keyID: 2, color: FAMILY.app },
-  { keyID: 3, color: FAMILY.org },
-  { keyID: 4, color: FAMILY.llc },
-  { keyID: 5, color: FAMILY.xyz },
-];
-
-function packed(hex) {
-  return parseInt(String(hex).replace(/^#/, ""), 16);
-}
 
 // Pure: where the click should land, given the site's feature list (or null
 // when it could not be read). The hosted page only when the site itself says
@@ -103,26 +84,6 @@ async function ensureBridge({ waitMs = 25000 } = {}) {
   throw new Error(`the bridge did not answer on port ${BRIDGE_PORT}: ${last ? last.message : "no response"}`);
 }
 
-// The hello. Every frame is accepted or refused by the bridge; an accepted
-// frame is not a lit key (the firmware says ok to anything), so the result
-// says "sent", never "lit".
-async function sayHello() {
-  const { token } = await getJson(`${BRIDGE_URL}/api/pairing-token`, { timeoutMs: 2500 });
-  const headers = {
-    "Content-Type": "application/json",
-    Origin: BRIDGE_URL,
-    "X-Pairing-Token": token,
-  };
-  for (const { keyID, color } of HELLO_KEYS) {
-    await getJson(`${BRIDGE_URL}/api/light`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ keyID, color: packed(color), effect: 1 }),
-      timeoutMs: 6000,
-    });
-  }
-}
-
 async function siteFeatures() {
   try {
     return await getJson(HOSTED_ORIGIN + FEATURES_PATH, { timeoutMs: 4000 });
@@ -160,30 +121,20 @@ function showFailure(text) {
 // bridge, no site and no browser.
 async function go(deps = {}) {
   const ensure = deps.ensureBridge || ensureBridge;
-  const hello = deps.sayHello || sayHello;
   const features = deps.siteFeatures || siteFeatures;
   const open = deps.openInBrowser || openInBrowser;
 
   const { started, state } = await ensure();
   const kind = state && state.device ? state.device.kind : "none";
-  let lights = "skipped";
-  if (kind === "hid" || kind === "virtual") {
-    try {
-      await hello();
-      lights = "sent";
-    } catch (e) {
-      lights = `failed: ${e.message}`;
-    }
-  }
   const destination = pickDestination(await features());
   open(destination.url);
-  return { bridge: started ? "started" : "already running", device: kind, lights, destination };
+  return { bridge: started ? "started" : "already running", device: kind, destination };
 }
 
 async function main() {
   try {
     const out = await go();
-    console.log(`bridge ${out.bridge}; pad: ${out.device}; family colors: ${out.lights}; opened ${out.destination.url}`);
+    console.log(`bridge ${out.bridge}; pad: ${out.device}; opened ${out.destination.url}`);
   } catch (e) {
     console.error(e.message);
     showFailure(`micr0pad could not start.\n\n${e.message}`);
@@ -194,6 +145,6 @@ async function main() {
 if (require.main === module) main();
 
 module.exports = {
-  FAMILY, HELLO_KEYS, HOSTED_ORIGIN, FEATURE_ID,
-  packed, pickDestination, go, ensureBridge, sayHello, siteFeatures,
+  HOSTED_ORIGIN, FEATURE_ID,
+  pickDestination, go, ensureBridge, siteFeatures,
 };

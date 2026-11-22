@@ -145,11 +145,13 @@ That puts a **micr0pad** shortcut on your desktop, with the pad drawing as its
 icon. Double-click it and, with no window of its own, it:
 
 1. starts the bridge if it is not already running, and leaves it running;
-2. shows the four family colors on the six status keys as a hello. The bridge
-   paints the keys from agent state again on its next poll, so the hello lasts
-   a few seconds and saves nothing;
-3. opens the hosted pairing page when that page is open to the public, and
+2. opens the hosted pairing page when that page is open to the public, and
    `http://localhost:4120` when it is not.
+
+While the bridge runs, a status key with no agent on it rests in a family
+color: the top two and the first of the row of four in `#ff4124`, then
+`#f45d43`, `#e97862` and `#faafa5`. A key with an agent shows that agent.
+Set `"restLights": "off"` in `config.json` to keep empty keys dark.
 
 If the bridge cannot start, a message box says why. The icon is a still frame:
 a Windows shortcut icon cannot animate.

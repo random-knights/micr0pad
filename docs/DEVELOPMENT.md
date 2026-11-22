@@ -312,27 +312,28 @@ wildcard: an entry that is not a plain https origin is dropped on load.
 
 `launcher/launcher.js` is what the desktop shortcut runs, and it has no window
 and no server of its own. It runs `go()` once and exits: start the bridge
-detached if `/api/state` does not answer, read the device kind, paint the six
-status keys in the family colors, then open the hosted pairing page or the
-local app in the default browser. `launcher/micr0pad.ico` is the shortcut's
+detached if `/api/state` does not answer, then open the hosted pairing page or
+the local app in the default browser. `launcher/micr0pad.ico` is the shortcut's
 icon, a still frame of the animated pad drawing on the docs site.
 
 Three decisions:
 
-- **It adds nothing to `server.js`.** It reads `/api/state` and
-  `/api/pairing-token` as a local caller and paints through `/api/light` with
-  that token, the way the local page does. A program on the same machine as
-  the same user was never stopped by the origin policy (see the README's
-  security section), so this opens no door that was shut.
+- **It adds nothing to `server.js`.** The only thing it asks the bridge is
+  `/api/state`, to learn whether it is up. It reads no token and sends no
+  light.
 - **The site decides where the click lands.** The launcher reads
   `/data/features.json` from the hosted site and opens the pairing page only
   when the `micr0pad` entry says `"state": "live"`. Unreadable, missing or any
   other state means the local app. Nothing in this repo changes on the day the
   page opens.
-- **The hello is one paint, not a setting.** `paintSlots` rewrites every key on
-  the next poll, so the family colors last at most `pollIntervalMs`. Holding
-  them longer would mean pausing the bridge, and a pad that stops showing agent
-  state to show a logo has its priorities backwards.
+- **The family colors belong to the bridge, not the launcher.** `paintSlots`
+  rewrites every key on every poll, so a color the launcher sent lasted at
+  most `pollIntervalMs`. `mapper.threadFor` now rests an empty slot in its
+  family color (`pad.restColors`, turned off with `"restLights": "off"`), so
+  the colors hold for as long as no agent takes the key.
+- **Thread frames use the short fields.** `threadFor` used to emit `color`,
+  `brightness`, `effect` and `speed`. The firmware reads `c`, `b`, `e` and
+  `s`, answers ok to the long spellings, and showed its own default green.
 
 A failure to start is the only thing it ever puts on screen: one message box,
 with the text passed in an environment variable so nothing in an error is

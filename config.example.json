@@ -153,6 +153,7 @@
       "label": "Unknown"
     }
   },
+  "restLights": "family",
   "underglowPriority": [
     "blocked",
     "working",
