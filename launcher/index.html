@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0P | Micr0Pad</title>
+<link rel="icon" href="/favicon.png">
+<style>
+  :root { --app: #ff4124; --org: #f45d43; --llc: #e97862; --xyz: #faafa5; --ink: #f4efe6; --dim: #a9a394; --bg: #15170f; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: var(--bg); color: var(--ink);
+    font: 500 13px/1.45 "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    padding: 18px; user-select: none;
+  }
+  button#pad {
+    all: unset; cursor: pointer; display: block; width: min(78vw, 62vh); aspect-ratio: 1008 / 984;
+    border-radius: 18px; outline-offset: 6px; transition: transform 120ms ease;
+  }
+  button#pad:hover { transform: scale(1.02); }
+  button#pad:focus-visible { outline: 2px solid var(--app); }
+  button#pad[disabled] { cursor: progress; opacity: 0.75; transform: none; }
+  button#pad img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+  h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; }
+  #hint { color: var(--dim); }
+  #status { min-height: 5.8em; width: 100%; max-width: 380px; margin: 0; padding: 0; list-style: none; text-align: center; }
+  #status li { color: var(--dim); }
+  #status li.ok { color: var(--ink); }
+  #status li.bad { color: var(--app); }
+  .family { display: flex; gap: 6px; }
+  .family i { width: 26px; height: 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+  <h1>micr0pad</h1>
+  <button id="pad" type="button" aria-label="Start micr0pad">
+    <img src="/pad.webp" alt="A hand-drawn micr0pad with its keys lighting up" width="1008" height="984">
+  </button>
+  <div class="family" aria-hidden="true">
+    <i style="background:var(--app)"></i><i style="background:var(--org)"></i><i style="background:var(--llc)"></i><i style="background:var(--xyz)"></i>
+  </div>
+  <div id="hint">click the pad to start</div>
+  <ul id="status" aria-live="polite"></ul>
+<script>
+  const base = "/__NONCE__";
+  const pad = document.getElementById("pad");
+  const hint = document.getElementById("hint");
+  const status = document.getElementById("status");
+  // Held open so the launcher knows the window still exists.
+  new EventSource(base + "/alive");
+
+  function line(text, cls) {
+    const li = document.createElement("li");
+    li.textContent = text;
+    if (cls) li.className = cls;
+    status.appendChild(li);
+  }
+
+  pad.addEventListener("click", async () => {
+    pad.disabled = true;
+    status.replaceChildren();
+    hint.textContent = "starting";
+    try {
+      const res = await fetch(base + "/go", { method: "POST" });
+      const out = await res.json();
+      if (!out.ok) throw new Error(out.error || "the start failed");
+      line("bridge: " + out.bridge, "ok");
+      if (out.device.kind === "hid") {
+        line("pad: " + (out.device.model || "connected"), "ok");
+      } else if (out.device.kind === "virtual") {
+        line("pad: none found, running the virtual pad" + (out.deviceError ? " (" + out.deviceError + ")" : ""));
+      } else {
+        line("pad: not connected", "bad");
+      }
+      if (out.lights === "sent") {
+        line(out.device.kind === "hid"
+          ? "family colors sent to the keys. Look at the pad to confirm."
+          : "family colors sent to the virtual pad", "ok");
+      } else if (out.lights !== "skipped") {
+        line("family colors: " + out.lights, "bad");
+      }
+      line(out.destination.kind === "hosted"
+        ? "opened the pairing page. Type the code from the local app into it."
+        : "opened the local app. The hosted pairing page is not open yet.", "ok");
+      hint.textContent = "click the pad to run it again";
+    } catch (e) {
+      line(String(e.message || e), "bad");
+      hint.textContent = "click the pad to try again";
+    } finally {
+      pad.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

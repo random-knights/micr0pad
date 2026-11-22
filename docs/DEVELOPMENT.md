@@ -308,6 +308,37 @@ then restart the server. The startup line `hosted origins allowed to pair:`
 shows the list it loaded. `https` only, no path, no trailing slash, never a
 wildcard: an entry that is not a plain https origin is dropped on load.
 
+## The desktop launcher
+
+`launcher/launcher.js` serves one page (`launcher/index.html`, with the looping
+`launcher/pad.webp`) on 127.0.0.1 at a port the OS picks, and opens it as a
+bare app window in Edge or Chrome, or in the default browser when neither is
+installed. One click on the pad runs `go()`: start the bridge detached if
+`/api/state` does not answer, read the device kind, paint the six status keys
+in the family colors, then open the hosted pairing page or the local app.
+
+Three decisions:
+
+- **It adds nothing to `server.js`.** It reads `/api/state` and
+  `/api/pairing-token` as a local caller and paints through `/api/light` with
+  that token, the way the local page does. A program on the same machine as
+  the same user was never stopped by the origin policy (see the README's
+  security section), so this opens no door that was shut.
+- **The site decides where the click lands.** The launcher reads
+  `/data/features.json` from the hosted site and opens the pairing page only
+  when the `micr0pad` entry says `"state": "live"`. Unreadable, missing or any
+  other state means the local app. Nothing in this repo changes on the day the
+  page opens.
+- **The hello is one paint, not a setting.** `paintSlots` rewrites every key on
+  the next poll, so the family colors last at most `pollIntervalMs`. Holding
+  them longer would mean pausing the bridge, and a pad that stops showing agent
+  state to show a logo has its priorities backwards.
+
+The window's start route carries a per-run random path segment and refuses any
+other origin, and no response sets `Access-Control-Allow-Origin`
+(`test/launcher-app.test.js`). The launcher exits three seconds after its last
+window closes; the bridge keeps running.
+
 ## Where per-user files live
 
 `lib/paths.js` decides, and every reader and writer goes through it:
