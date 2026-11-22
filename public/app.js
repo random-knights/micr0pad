@@ -327,6 +327,23 @@ function renderPad() {
       keyEl.style.backgroundColor = info.light;
       keyEl.style.boxShadow = `0 0 12px ${info.light}88`;
     } else keyEl.classList.add("off");
+    // A key with a session on it opens that session, the same thing the
+    // physical key does: its Herdr tab, or the window it runs in.
+    if (info && info.agent && state.deviceKind !== "virtual") {
+      keyEl.classList.add("pressable");
+      keyEl.setAttribute("role", "button");
+      keyEl.setAttribute("tabindex", "0");
+      keyEl.title = `open ${label}`;
+      const openIt = async () => {
+        keyEl.classList.add("pressed");
+        setTimeout(() => keyEl.classList.remove("pressed"), 160);
+        const r = await apiPost("/api/focus", { slot: info.slot });
+        const j = await r.json().catch(() => ({}));
+        if (!j.ok) knobNote(keyEl, j.text || j.error || "could not open that session");
+      };
+      keyEl.onclick = openIt;
+      keyEl.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openIt(); } };
+    }
     // With a virtual pad the mirror IS the pad: clicking a key presses it.
     // The press goes through /api/press, which is a mutating route and so
     // carries the pairing token and is judged by the same origin policy as
@@ -568,14 +585,80 @@ let talkRecognition = null;
 // Where a transcript goes. The clipboard is the nice case but it needs a
 // focused document, so the Notes box is written first - it always works, and
 // it is visible, which the clipboard is not.
-function deliverTranscript(text) {
+//
+// Dictation is live: words appear in Notes as they are heard, and are
+// corrected in place as the recognizer settles on them. `talkBase` is what
+// Notes held when talk started, so each update rewrites only this session's
+// words and never what was already there.
+let talkBase = "";
+let talkHeard = "";
+
+// Pure: Notes text for what was there before plus what has been heard so far.
+function notesWithDictation(base, heard) {
+  const before = String(base || "").replace(/\s*$/, "");
+  const words = String(heard || "").trim();
+  if (!words) return String(base || "");
+  return before ? before + "\n" + words : words;
+}
+
+// Pure: the whole transcript so far from a SpeechRecognition result list,
+// settled phrases first, the phrase still being heard last.
+function transcriptOf(results) {
+  let text = "";
+  for (let i = 0; i < results.length; i++) text += results[i][0].transcript;
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function showDictation(heard) {
+  talkHeard = heard;
   const notes = document.getElementById("notes");
   if (notes) {
-    notes.value = notes.value ? notes.value.replace(/\s*$/, "") + "\n" + text : text;
+    notes.value = notesWithDictation(talkBase, heard);
+    notes.scrollTop = notes.scrollHeight;
   }
+}
+
+// Talk ended: the words are already in Notes. Put them on the clipboard too.
+function finishDictation() {
+  const text = talkHeard.trim();
+  talkHeard = "";
+  if (!text) return;
   navigator.clipboard.writeText(text)
     .then(() => talkNote("heard: " + text + " (in Notes and on the clipboard)"))
     .catch(() => talkNote("heard: " + text + " (in Notes; clipboard needs this tab focused)"));
+}
+
+// Start the recognizer. Split out of toggleTalk so a talk press that arrives
+// while the page is in the background can start it the moment the page is
+// brought forward.
+function startRecognition(SR) {
+  const rec = new SR();
+  rec.lang = "en-US";
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  rec.onresult = (e) => showDictation(transcriptOf(e.results));
+  rec.onerror = (e) => {
+    const why = {
+      "not-allowed": "microphone permission was denied for this page",
+      "service-not-allowed": "the browser blocked the speech service",
+      "audio-capture": "no microphone was found",
+      "no-speech": "nothing was heard",
+      aborted: "listening was interrupted - the tab probably lost focus",
+      network: "the speech service could not be reached",
+    }[e.error] || ("speech error: " + e.error);
+    talkNote(why);
+    stopTalk(document.getElementById("talkBtn"));
+  };
+  rec.onend = () => { if (talkRecognition === rec) stopTalk(document.getElementById("talkBtn")); };
+  talkRecognition = rec;
+  try {
+    rec.start();
+    talkNote("listening: your words go into Notes as you speak");
+  } catch (err) {
+    talkRecognition = null;
+    talkNote("could not start listening: " + err.message);
+  }
 }
 
 function talkNote(text) {
@@ -594,39 +677,29 @@ function toggleTalk(btn) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     talkNote("this browser has no Web Speech API - use Chrome or Edge");
-  } else if (!document.hasFocus()) {
-    // The pad was pressed while the browser was in the background. The gold
-    // pulse still runs, but Chrome will not listen for an unfocused document,
-    // so say that instead of appearing to work.
-    talkNote("talk is on, but dictation needs this tab focused - click it, or press talk again here");
   } else {
-    const rec = new SR();
-    rec.lang = "en-US";
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    rec.onresult = (e) => {
-      deliverTranscript(e.results[0][0].transcript);
-      stopTalk(btn);
-    };
-    rec.onerror = (e) => {
-      const why = {
-        "not-allowed": "microphone permission was denied for this page",
-        "service-not-allowed": "the browser blocked the speech service",
-        "audio-capture": "no microphone was found",
-        "no-speech": "nothing was heard",
-        aborted: "listening was interrupted - the tab probably lost focus",
-        network: "the speech service could not be reached",
-      }[e.error] || ("speech error: " + e.error);
-      talkNote(why);
-      stopTalk(btn);
-    };
-    rec.onend = () => stopTalk(btn);
-    talkRecognition = rec;
-    try {
-      rec.start();
-    } catch (err) {
-      talkRecognition = null;
-      talkNote("could not start listening: " + err.message);
+    const notes = document.getElementById("notes");
+    talkBase = notes ? notes.value : "";
+    talkHeard = "";
+    if (document.hasFocus()) {
+      startRecognition(SR);
+    } else {
+      // The pad was pressed while the browser was in the background. Chrome
+      // will not listen for an unfocused document, and the bridge is bringing
+      // this page forward (talkRaisesPage). Start the moment it arrives; if it
+      // never does, say so instead of appearing to work.
+      talkNote("talk is on: waiting for this page to come forward...");
+      const onFocus = () => {
+        clearTimeout(waiting);
+        if (talkListening && !talkRecognition) startRecognition(SR);
+      };
+      const waiting = setTimeout(() => {
+        window.removeEventListener("focus", onFocus);
+        if (talkListening && !talkRecognition) {
+          talkNote("talk is on, but dictation needs this tab in front - click it, or press talk again here");
+        }
+      }, 5000);
+      window.addEventListener("focus", onFocus, { once: true });
     }
   }
   talkListening = true;
@@ -636,8 +709,12 @@ function toggleTalk(btn) {
 }
 
 function stopTalk(btn) {
-  if (talkRecognition) { try { talkRecognition.stop(); } catch (_) {} talkRecognition = null; }
+  if (!talkListening && !talkRecognition) return;
+  const rec = talkRecognition;
+  talkRecognition = null;
+  if (rec) { try { rec.stop(); } catch (_) {} }
   talkListening = false;
+  finishDictation();
   if (btn) {
     btn.classList.remove("listening");
     btn.textContent = "talk: Talk (voice)";

@@ -159,9 +159,14 @@ first free `claude` key:
 | finished a turn | its slot color, steady |
 | closed | the resting family color again |
 
+Press a lit key, on the pad or on the page, and the session opens: a Herdr
+agent's tab is focused, and any other session's window is brought forward. For
+the Claude desktop app that is the app window, on whichever conversation it
+was showing.
+
 The hook sends the provider name, the session id, the state, the folder path
-and the folder's name to `localhost`, and nothing else: no prompt, no tool
-input, no output. It makes no model call and costs no tokens. It adds one
+and the folder's name to `localhost`, plus once per session the process id of
+the window it runs in, and nothing else: no prompt, no tool input, no output. It makes no model call and costs no tokens. It adds one
 short `node` process to each tool call (about a tenth of a second here). If the
 bridge is not running it does nothing. A session that crashes without saying
 goodbye is dropped after six hours of silence. Other providers get a key the
@@ -234,10 +239,13 @@ If port 4120 is taken, set `RK_MICROPAD_PORT` to something else before starting.
   everyone else buttons that can only fail. Click the gear in the Action Keys
   tile, give a key a label and a command, and it works from the pad and from
   the page.
-- **A talk key.** It types what you say into the notes box and the clipboard,
-  and the strip pulses gold while it is listening. Speech recognition is the
-  browser's, so the tab has to be in front; press talk while you are working
-  elsewhere and the app tells you that rather than going quiet.
+- **A talk key.** Your words appear in the notes box as you say them, and go
+  to the clipboard when you press talk again. The strip pulses gold while it
+  is listening. Speech recognition is the browser's, so the tab has to be in
+  front: press talk while you are working elsewhere and the app brings its
+  page forward and then starts listening. That works while the MicroPad tab is
+  the selected tab of its browser window. Set `"talkRaisesPage": false` in
+  `config.json` to leave your windows where they are.
 - **Lights you can edit.** Slot names, colors and the outer light, saved to
   `config.json`. Eight choices in the effect list: follow the agent state, or
   pick one of the seven the firmware has (solid, pulse, soft pulse, spin,

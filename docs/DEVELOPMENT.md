@@ -212,12 +212,16 @@ document that is not focused - and `navigator.clipboard.writeText` refuses for
 the same reason. Since you press the pad precisely when you are working in
 another window, device-triggered dictation cannot work unaided.
 
-What the code does about it: transcripts go to the Notes box FIRST (focus-
-independent and visible) and the clipboard second; every speech error is
-reported in the notice line instead of being swallowed; and an unfocused talk
-press says so explicitly. `focusBrowserOnTalk` (off by default) raises the
-browser window from the server side, which is the only place that can - a page
-cannot focus itself.
+What the code does about it: a talk press on the pad raises the page from the
+server side (`talkRaisesPage`, on by default; it replaces `focusBrowserOnTalk`,
+which was off by default and matched a page title the page no longer has), and
+the page waits up to five seconds for that focus before it starts listening.
+Dictation is continuous with interim results, so words land in the Notes box
+as they are spoken and are corrected in place; the clipboard gets the text
+when talk stops. Every speech error is reported in the notice line instead of
+being swallowed. The raise only finds the page while its tab is the selected
+tab of its browser window: a browser titles a window after that tab, and the
+title is all the server has to go on.
 
 ## Trade-offs on record
 
@@ -370,9 +374,24 @@ are the code they always were.
   straight away; measured here the pad state followed in under 100 ms.
 - **Stale sessions are dropped** after `sessions.staleMs` (six hours, floor
   one minute). A crashed session never says goodbye.
-- **A key with no Herdr tab says so.** Pressing the key of a reported session
-  emits a notice and focuses nothing. Handing Herdr a provider name would
-  focus some other agent.
+- **A key opens its session.** A Herdr agent's key focuses its Herdr tab. A
+  reported session's key brings the window it runs in forward
+  (`focus.raiseWindow`), restoring it first if it is minimized. The page does
+  the same through `POST /api/focus` when a lit key is clicked. Herdr is
+  never handed a provider name: it would focus some other agent.
+- **The window is found once per session.** The bridge answers a report with
+  `wantWindow` until it has an answer; the hook then walks up from its own
+  process to the first ancestor that owns a window (`focus.windowOwnerOf`)
+  and reports that process id, or 0 for none. About a second, once. The id
+  stays in the bridge and is not sent to the page.
+- **It is the window, not the conversation.** For a terminal or an editor
+  that is the right place. For the Claude desktop app it brings the app
+  forward on whatever conversation it was showing: nothing here knows a way
+  to select one conversation inside that app, and inventing a link format
+  would be worse than saying so.
+- **The hook uses `http`, not `fetch`, and never calls `process.exit`.** With
+  `fetch` and a forced exit the first report of a session tripped a libuv
+  assertion on Windows: text on stderr and a failure code, from a hook.
 - **Blocked overrides the slot color; working pulses.** Every default slot has
   its own color, so before this the state only showed in the effect and
   working and done were both solid. Working is now effect 6, and blocked

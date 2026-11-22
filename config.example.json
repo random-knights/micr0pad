@@ -1,7 +1,7 @@
 {
   "pollIntervalMs": 2500,
   "cmdDir": null,
-  "focusBrowserOnTalk": false,
+  "talkRaisesPage": true,
   "virtualPad": {
     "enabled": true,
     "onUnplug": false
