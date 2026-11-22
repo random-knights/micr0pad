@@ -312,7 +312,13 @@ function renderPad() {
     keyEl.innerHTML = `<span class="lbl">${label}</span>` +
       (info && info.agent ? `<span class="state">${info.agent.status}</span>` : "");
     if (info && info.agent) keyEl.classList.add("lit-" + info.agent.status);
-    else keyEl.classList.add("off");
+    else if (info && /^#[0-9a-f]{6}$/i.test(info.light || "")) {
+      // No agent on the key, but the bridge is lighting it (the resting
+      // family color). Draw the color the bridge says it sent.
+      keyEl.classList.add("lit-rest");
+      keyEl.style.backgroundColor = info.light;
+      keyEl.style.boxShadow = `0 0 12px ${info.light}88`;
+    } else keyEl.classList.add("off");
     // With a virtual pad the mirror IS the pad: clicking a key presses it.
     // The press goes through /api/press, which is a mutating route and so
     // carries the pairing token and is judged by the same origin policy as

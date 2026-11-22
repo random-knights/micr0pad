@@ -87,6 +87,36 @@ test("the virtual pad is lit by the same mapper the real pad is", async () => {
   assert.ok(shown.zones.ambient, "the outer light was painted too");
 });
 
+test("with no agents the pad rests in the family colors, and the state says which", async () => {
+  const { bridge } = bridgeWith([]);
+  const states = [];
+  bridge.on("state", (s) => states.push(s));
+  await bridge.refresh();
+  const shown = bridge.dev.snapshot();
+  assert.deepEqual(shown.threads.map((t) => t.c), pad.restColors);
+  assert.equal(shown.zones.ambient.c, 0xff4124);
+  assert.deepEqual(states[0].assigned.map((a) => a.light),
+    ["#ff4124", "#ff4124", "#ff4124", "#f45d43", "#e97862", "#faafa5"],
+    "the page is told the color each key was sent");
+});
+
+test("restLights off keeps an empty pad dark and reports no light", async () => {
+  const { bridge } = bridgeWith([], { restLights: "off" });
+  const states = [];
+  bridge.on("state", (s) => states.push(s));
+  await bridge.refresh();
+  const shown = bridge.dev.snapshot();
+  assert.ok(shown.threads.every((t) => t.b === 0));
+  assert.deepEqual(states[0].assigned.map((a) => a.light), [null, null, null, null, null, null]);
+});
+
+test("the last thing written on a poll is the per-key frame, after the zones", async () => {
+  const hid = fakeHid();
+  const { bridge } = bridgeWith([hid]);
+  await bridge.refresh();
+  assert.deepEqual(hid.calls.map((c) => c[0]), ["v.oai.rgbcfg", "v.oai.thstatus"]);
+});
+
 test("a physical pad takes over from the virtual one and the lights are replayed", async () => {
   const hid = fakeHid();
   const { bridge, notices } = bridgeWith([new Error("no pad"), hid]);

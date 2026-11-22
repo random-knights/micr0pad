@@ -361,6 +361,7 @@ img.pad-mark { mix-blend-mode: screen; pointer-events: none; }
 .pad-key.lit-done { background-color: #00b0ff; color: #111; box-shadow: 0 0 12px #00b0ff88; }
 .pad-key.lit-idle { background-color: #ffd400; color: #111; box-shadow: 0 0 12px #ffd40088; }
 .pad-key.lit-unknown { background-color: #90a4ae; color: #111; }
+.pad-key.lit-rest { color: #111; }
 .pad-key.off { background-color: #22261a; }
 
 .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 11px; font-size: 11px; justify-content: center; }

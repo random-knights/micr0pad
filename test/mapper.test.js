@@ -93,6 +93,12 @@ test("zoneFor returns null when no slot has an agent (nothing to light)", () => 
   assert.equal(mapper.zoneFor(assigned, pad.underglow), null);
 });
 
+test("zoneFor rests the outer light in the primary family color when asked to", () => {
+  const assigned = [{ slotCfg: { slot: 0 }, agent: null }];
+  assert.deepEqual(mapper.zoneFor(assigned, pad.underglow, "family"), { e: 1, b: 1, s: 0.5, m: 1, c: 0xff4124 });
+  assert.equal(mapper.zoneFor(assigned, pad.underglow, "off"), null);
+});
+
 test("zoneFor: worst-of-six - one blocked among five idle drives the underglow red", () => {
   const assigned = [
     { slotCfg: { slot: 0 }, agent: agent({ status: "idle" }) },

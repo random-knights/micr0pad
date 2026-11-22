@@ -330,10 +330,17 @@ Three decisions:
   rewrites every key on every poll, so a color the launcher sent lasted at
   most `pollIntervalMs`. `mapper.threadFor` now rests an empty slot in its
   family color (`pad.restColors`, turned off with `"restLights": "off"`), so
-  the colors hold for as long as no agent takes the key.
+  the colors hold for as long as no agent takes the key. The outer light
+  rests in the primary color the same way (`mapper.zoneFor`).
+- **The page mirrors what was sent.** `/api/state` and the `state` event
+  carry a `light` per slot (`bridge.lightOf`): the color the key was sent, or
+  null when it is dark. The page draws an empty key from that, so the mirror
+  never holds a second opinion about a resting color.
+- **Zones first, threads second.** Each poll writes `v.oai.rgbcfg` and then
+  `v.oai.thstatus`, so the per-key colors are the last word.
 - **Thread frames use the short fields.** `threadFor` used to emit `color`,
   `brightness`, `effect` and `speed`. The firmware reads `c`, `b`, `e` and
-  `s`, answers ok to the long spellings, and showed its own default green.
+  `s` (a hand-sent short frame lit the pad) and answers ok to anything.
 
 A failure to start is the only thing it ever puts on screen: one message box,
 with the text passed in an environment variable so nothing in an error is

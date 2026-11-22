@@ -150,8 +150,9 @@ icon. Double-click it and, with no window of its own, it:
 
 While the bridge runs, a status key with no agent on it rests in a family
 color: the top two and the first of the row of four in `#ff4124`, then
-`#f45d43`, `#e97862` and `#faafa5`. A key with an agent shows that agent.
-Set `"restLights": "off"` in `config.json` to keep empty keys dark.
+`#f45d43`, `#e97862` and `#faafa5`. The outer light rests in `#ff4124`, and
+the pad on the page shows the same colors. A key with an agent shows that
+agent. Set `"restLights": "off"` in `config.json` to keep an empty pad dark.
 
 If the bridge cannot start, a message box says why. The icon is a still frame:
 a Windows shortcut icon cannot animate.
