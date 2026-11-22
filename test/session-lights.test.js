@@ -318,7 +318,7 @@ test("the installer adds one entry per event and leaves other hooks alone", () =
   assert.equal(after.model, "x");
   assert.deepEqual(before.hooks.SessionEnd, [{ hooks: [mine] }], "the input is not mutated");
   for (const event of hooks.EVENTS) {
-    const ours = after.hooks[event].flatMap((g) => g.hooks).filter(hooks.isOurs);
+    const ours = after.hooks[event].flatMap((g) => g.hooks).filter((h) => hooks.isOurs(h));
     assert.equal(ours.length, 1, event);
   }
   assert.deepEqual(after.hooks.SessionEnd[0], { hooks: [mine] }, "the hook that was there is still first");
@@ -335,7 +335,74 @@ test("installing twice is the same as installing once, and removing puts it back
   assert.deepEqual(hooks.without(hooks.withHooks({}, command)), {}, "an empty file goes back to empty");
 });
 
+test("each Codex event maps to the state the hook documents", () => {
+  const { codexStatus } = require("../hooks/session-report");
+  const cases = [
+    ["SessionStart", "idle"], ["UserPromptSubmit", "working"], ["PreToolUse", "working"], ["PostToolUse", "working"],
+    ["PermissionRequest", "blocked"], ["Stop", "done"], ["Interrupt", "done"], ["SessionEnd", "gone"],
+    ["PreModelRequest", null], ["PostModelRequest", null], ["PreCompact", null], ["PostCompact", null],
+    ["SubagentStart", null], ["SubagentStop", null], ["Notification", null],
+  ];
+  for (const [event, want] of cases) assert.equal(codexStatus({ hook_event_name: event }), want, event);
+  assert.equal(codexStatus({}), null);
+});
+
+test("a Codex payload becomes a codex report with no content in it", () => {
+  // The shape Codex documents for a command hook, with fields this must not forward.
+  const body = reportFor("codex", {
+    session_id: "thr_123", transcript_path: "/workspace/.codex/rollout.jsonl", cwd: "/workspace/api",
+    hook_event_name: "PermissionRequest", model: "some-model", turn_id: "t1", permission_mode: "default",
+    tool_name: "Bash", tool_input: { command: "echo secret", description: "run it" },
+  });
+  assert.deepEqual(body, { provider: "codex", id: "thr_123", status: "blocked", cwd: "/workspace/api", title: "api" });
+});
+
+test("a reported Codex session lights the codex key and leaves the claude keys alone", async () => {
+  const sessions = new Sessions();
+  sessions.report(reportFor("codex", { session_id: "thr_123", cwd: "/workspace/api", hook_event_name: "PreToolUse" }));
+  const { bridge, states } = bridgeWith(sessions);
+  await bridge.refresh();
+  const a = states[0].assigned;
+  assert.equal(a[0].agent, null);
+  assert.equal(a[1].agent, null);
+  assert.deepEqual([a[2].agent.agent, a[2].agent.status, a[2].agent.title, a[2].light], ["codex", "working", "api", "#00b0ff"]);
+});
+
+test("the Codex installer writes the hooks.json shape Codex documents, in the background", () => {
+  const command = 'node "/app/hooks/session-report.js" codex';
+  const after = hooks.withHooks({ description: "mine" }, command, "codex");
+  assert.equal(after.description, "mine");
+  assert.deepEqual(Object.keys(after.hooks), hooks.PROVIDERS.codex.events);
+  assert.deepEqual(after.hooks.PreToolUse, [{ hooks: [{ type: "command", command, async: true, timeout: 5 }] }]);
+  assert.equal(after.hooks.SessionEnd[0].hooks[0].timeout, 3, "Codex caps SessionEnd at three seconds");
+  assert.equal(after.hooks.Interrupt[0].hooks[0].timeout, 3);
+  assert.ok(!("Notification" in after.hooks), "Codex has no Notification event");
+  assert.deepEqual(hooks.without(after, "codex"), { description: "mine" });
+});
+
+test("in one file, removing one provider's hooks leaves the other's", () => {
+  const claude = 'node "/app/hooks/session-report.js" claude';
+  const codex = 'node "/app/hooks/session-report.js" codex';
+  const both = hooks.withHooks(hooks.withHooks({}, claude, "claude"), codex, "codex");
+  const left = hooks.without(both, "codex");
+  assert.deepEqual(left, hooks.withHooks({}, claude, "claude"));
+  assert.equal(hooks.isOurs({ command: claude }, "codex"), false);
+  assert.equal(hooks.isOurs({ command: claude }, "claude"), true);
+  assert.equal(hooks.isOurs({ command: claude }), true);
+});
+
+test("every event the installer registers is one the hook maps to a state", () => {
+  const { MAPPERS } = require("../hooks/session-report");
+  for (const [provider, spec] of Object.entries(hooks.PROVIDERS)) {
+    for (const event of spec.events) {
+      const payload = { hook_event_name: event, notification_type: "permission_prompt" };
+      assert.ok(MAPPERS[provider](payload), `${provider} ${event} would run the hook for nothing`);
+    }
+  }
+});
+
 test("the hook command quotes the path and names the provider", () => {
+  assert.match(hooks.hookCommand("/opt/micr0pad", "codex"), / codex$/);
   const command = hooks.hookCommand("/opt/micr0pad");
   assert.match(command, /^node ".*\/hooks\/session-report\.js" claude$/);
   assert.ok(!command.includes("\\"), "forward slashes only");
