@@ -1044,6 +1044,23 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Open the session on a status key: what pressing that key on the pad does.
+  // The page calls this when a lit key is clicked.
+  if (req.method === "POST" && p === "/api/focus") {
+    readJsonBody(req, res, (parsed) => {
+      const slot = Number(parsed.slot);
+      if (!Number.isInteger(slot) || slot < 0 || slot > 5) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "slot must be 0 to 5" }));
+        return;
+      }
+      bridge.focusAgentForSlot(slot)
+        .then((result) => { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(result)); })
+        .catch((e) => { res.writeHead(500, { "Content-Type": "application/json" }); res.end(JSON.stringify({ ok: false, error: e.message })); });
+    });
+    return;
+  }
+
   // A session on this machine reporting its own state. Local callers only
   // (LOCAL_ONLY_ROUTES), with the pairing token like every other mutation.
   // A report that changes the roster repaints at once, so the pad follows the

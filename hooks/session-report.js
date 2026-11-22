@@ -14,14 +14,17 @@
  * http://localhost:<port>/api/session on the same machine.
  *
  * WHAT IT SENDS
- * provider, session id, state, the folder path and the folder's name. That is
+ * provider, session id, state, the folder path and the folder's name. Once
+ * per session it also sends the process id of the window the session runs
+ * in, so pressing the session's key can bring that window forward. That is
  * the whole body. It never opens the transcript, and it sends no prompt, no
  * tool input and no tool output: it does not read them.
  *
  * WHAT IT COSTS
  * No model call and no network beyond localhost. One short node process per
- * event. If the bridge is not running the request fails in well under a
- * second and nothing happens.
+ * event, plus one window lookup per session (about a second, Windows only).
+ * If the bridge is not running the request fails in well under a second and
+ * nothing happens.
  *
  * IT MUST NEVER GET IN THE WAY
  * Every path exits 0 and prints nothing. A hook that fails or talks can block
@@ -34,6 +37,7 @@
  * user on the same machine, and sends it in one header. It is never printed.
  */
 const fs = require("fs");
+const http = require("http");
 const path = require("path");
 
 const PORT = process.env.RK_MICROPAD_PORT || 4120;
@@ -96,15 +100,50 @@ function readToken() {
   return typeof token === "string" ? token : "";
 }
 
+// Plain http with no keep-alive, not fetch: the connection closes with the
+// response, so the process ends by itself with nothing left open. (fetch plus
+// a forced exit tripped a libuv assertion on Windows, which printed to stderr
+// and returned a failure code: exactly what a hook must never do.)
+function post(token, body) {
+  return new Promise((resolve) => {
+    const data = JSON.stringify(body);
+    const req = http.request(`${BRIDGE}/api/session`, {
+      method: "POST",
+      agent: false,
+      timeout: TIMEOUT_MS,
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(data),
+        Origin: BRIDGE,
+        "X-Pairing-Token": token,
+        Connection: "close",
+      },
+    }, (res) => {
+      let text = "";
+      res.setEncoding("utf8");
+      res.on("data", (c) => { if (text.length < 4096) text += c; });
+      res.on("end", () => { try { resolve(JSON.parse(text)); } catch (_) { resolve({}); } });
+      res.on("error", () => resolve({}));
+    });
+    req.on("timeout", () => req.destroy());
+    req.on("error", () => resolve({}));
+    req.end(data);
+  });
+}
+
+// Send the report. If the bridge answers that it does not yet know which
+// window this session lives in, find it and send it: once per session, since
+// the bridge stops asking as soon as it has an answer (0 means "none"). The
+// lookup walks up from this process to the first ancestor that owns a window,
+// which is the terminal, the editor or the desktop app the session runs in.
 async function send(body) {
   const token = readToken();
   if (!token) return;
-  await fetch(`${BRIDGE}/api/session`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Origin: BRIDGE, "X-Pairing-Token": token },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  const answer = await post(token, body);
+  if (answer && answer.wantWindow && body.status !== "gone") {
+    const windowPid = require("../lib/focus").windowOwnerOf(process.ppid);
+    await post(token, Object.assign({}, body, { windowPid }));
+  }
 }
 
 function readStdin() {
@@ -126,7 +165,10 @@ async function main() {
   } catch (_) {
     // Silent by design: see IT MUST NEVER GET IN THE WAY above.
   }
-  process.exit(0);
+  // No process.exit: nothing is left open, so the process ends by itself,
+  // and a forced exit is what crashed on Windows. The code is set in case
+  // something upstream changed it.
+  process.exitCode = 0;
 }
 
 if (require.main === module) main();
