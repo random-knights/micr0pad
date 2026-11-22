@@ -311,8 +311,16 @@ function renderPad() {
     const label = (slotCfg && slotCfg.name) || KEY_NAMES[k] || k;
     keyEl.innerHTML = `<span class="lbl">${label}</span>` +
       (info && info.agent ? `<span class="state">${info.agent.status}</span>` : "");
-    if (info && info.agent) keyEl.classList.add("lit-" + info.agent.status);
-    else if (info && /^#[0-9a-f]{6}$/i.test(info.light || "")) {
+    const sent = info && /^#[0-9a-f]{6}$/i.test(info.light || "") ? info.light : null;
+    if (info && info.agent) {
+      // The class carries the state (and its motion); the color is the one
+      // the bridge says it sent, so the mirror and the pad cannot disagree.
+      keyEl.classList.add("lit-" + info.agent.status);
+      if (sent) {
+        keyEl.style.backgroundColor = sent;
+        keyEl.style.boxShadow = `0 0 12px ${sent}88`;
+      }
+    } else if (sent) {
       // No agent on the key, but the bridge is lighting it (the resting
       // family color). Draw the color the bridge says it sent.
       keyEl.classList.add("lit-rest");
@@ -387,14 +395,14 @@ function renderSlots() {
     const cwd = s.agent ? s.agent.cwd || "" : "";
     const pane = s.agent ? s.agent.paneID : "";
     const herdr = agentByPane[pane] || {};
-    const title = s.agent ? (herdr.title || "") : "";
+    const title = s.agent ? (herdr.title || s.agent.title || "") : "";
     const focused = s.agent ? (herdr.focused ? "yes" : "") : "";
     tr.innerHTML =
       `<td>${s.keyID}</td><td title="${esc(slotName(s.slot, s.name))}">${esc(slotName(s.slot, s.name))}</td>` +
       (s.agent
-        ? `<td title="${s.agent.agent}">${s.agent.agent}</td><td class="status cell-${s.agent.status}">${s.agent.status}</td><td class="cwd-cell" title="${cwd}">${cwd}</td><td class="cwd-cell" title="${title}">${title}</td>`
+        ? `<td title="${esc(s.agent.agent)}">${esc(s.agent.agent)}</td><td class="status cell-${esc(s.agent.status)}">${esc(s.agent.status)}</td><td class="cwd-cell" title="${esc(cwd)}">${esc(cwd)}</td><td class="cwd-cell" title="${esc(title)}">${esc(title)}</td>`
         : `<td colspan="3" style="color:#666">n/a</td><td></td>`) +
-      `<td><button class="cd-btn" data-pane="${pane}" data-cwd="${cwd}" title="cd into workspace"${s.agent ? "" : " disabled"}>cd</button></td>` +
+      `<td><button class="cd-btn" data-pane="${esc(pane || "")}" data-cwd="${esc(cwd)}" title="cd into workspace"${s.agent && pane ? "" : " disabled"}>cd</button></td>` +
       `<td>${focused}</td>`;
     tbody.appendChild(tr);
   }
