@@ -8,8 +8,9 @@
  *
  * WHAT THIS IS
  * A hook target. The agent runs it at the moments its state changes and hands
- * it a small JSON payload on stdin. For Claude Code that payload names the
- * event (hook_event_name), the session (session_id) and the folder (cwd).
+ * it a small JSON payload on stdin. For Claude Code and for Codex that payload
+ * names the event (hook_event_name), the session (session_id) and the folder
+ * (cwd). <provider> is "claude" or "codex" and picks the event table.
  * This script turns the event into one of four states and POSTs it to
  * http://localhost:<port>/api/session on the same machine.
  *
@@ -81,7 +82,38 @@ function claudeStatus(payload) {
   }
 }
 
-const MAPPERS = { claude: claudeStatus };
+// Codex event -> pad state. Codex hooks hand over the same JSON shape (the
+// same hook_event_name, session_id and cwd), with its own list of events:
+//
+//   SessionStart       the session exists and is waiting       idle
+//   UserPromptSubmit   a turn began                            working
+//   PreToolUse         a tool is about to run                  working
+//   PostToolUse        a tool finished                         working
+//   PermissionRequest  it is about to ask for approval         blocked
+//   Stop               the turn finished                       done
+//   Interrupt          the user stopped the turn               done
+//   SessionEnd         the session closed                      gone
+//
+// Codex has no Notification event, and everything else it fires (model
+// requests, compaction, subagents) says nothing about what the user is
+// waiting on. Subagent events carry the parent's session id, so a subagent
+// never takes a key of its own.
+function codexStatus(payload) {
+  const p = payload || {};
+  switch (p.hook_event_name) {
+    case "SessionStart": return "idle";
+    case "UserPromptSubmit":
+    case "PreToolUse":
+    case "PostToolUse": return "working";
+    case "PermissionRequest": return "blocked";
+    case "Stop":
+    case "Interrupt": return "done";
+    case "SessionEnd": return "gone";
+    default: return null;
+  }
+}
+
+const MAPPERS = { claude: claudeStatus, codex: codexStatus };
 
 // Pure: the body to send, or null when there is nothing to say.
 function reportFor(provider, payload) {
@@ -173,4 +205,4 @@ async function main() {
 
 if (require.main === module) main();
 
-module.exports = { claudeStatus, reportFor, MAPPERS };
+module.exports = { claudeStatus, codexStatus, reportFor, MAPPERS };

@@ -137,9 +137,9 @@ so it needs to be installed and on your `PATH`:
 powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"
 ```
 
-**Sessions that report themselves.** A Claude Code session anywhere on this
-machine (the desktop app, an IDE, a plain terminal) can tell the bridge its own
-state through a hook, with no Herdr:
+**Sessions that report themselves.** A Claude Code or Codex session anywhere
+on this machine (a desktop app, an IDE, a plain terminal) can tell the bridge
+its own state through a hook, with no Herdr:
 
 ```powershell
 npm run session-hooks
@@ -148,8 +148,19 @@ npm run session-hooks
 That prints what it would add to your Claude Code `settings.json` and writes
 nothing. `npm run session-hooks -- --write` backs the file up and adds the
 hooks; `npm run session-hooks -- --remove --write` takes them out again. Other
-hooks in the file are left as they are. Sessions started after that light the
-first free `claude` key:
+hooks in the file are left as they are.
+
+For Codex, add `--provider codex` to any of those. It edits Codex's own
+`hooks.json`, and the hooks run in the background so Codex never waits on
+them. Codex will not run a new hook until you have reviewed and trusted it:
+open `/hooks` in the Codex CLI, or Settings > Hooks in the Codex app.
+
+```powershell
+npm run session-hooks -- --provider codex --write
+```
+
+Sessions started after that light the first free key for their provider
+(`claude` or `codex`):
 
 | the session is | the key shows |
 |---|---|
@@ -170,7 +181,8 @@ the window it runs in, and nothing else: no prompt, no tool input, no output. It
 short `node` process to each tool call (about a tenth of a second here). If the
 bridge is not running it does nothing. A session that crashes without saying
 goodbye is dropped after six hours of silence. Other providers get a key the
-same way once they have a reporter; Claude Code is the one that ships.
+same way once they have a reporter; Claude Code and Codex are the two that
+ship.
 
 Without either source the pad still runs and the six keys rest in the family
 colors.

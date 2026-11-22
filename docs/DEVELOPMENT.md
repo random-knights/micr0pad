@@ -397,11 +397,22 @@ are the code they always were.
   working and done were both solid. Working is now effect 6, and blocked
   always takes the blocked red.
 - **Adding a provider** is one mapper function in `MAPPERS` in the hook and
-  whatever that provider calls a hook. The bridge needs nothing.
+  one entry in `PROVIDERS` in the installer. The bridge needs nothing. Codex
+  was exactly that: its command hooks hand over the same `hook_event_name`,
+  `session_id` and `cwd`, with its own event list (`PermissionRequest` and
+  `Interrupt`, no `Notification`). A test fails if the installer registers an
+  event the mapper says nothing for.
+- **Codex hooks are `async`.** A report decides nothing, so Codex does not
+  wait for it. Codex runs `SessionEnd` in the foreground whatever the file
+  says and caps it, and `Interrupt`, at three seconds.
+- **Codex needs a trust step this cannot do.** A new or changed hook is
+  skipped until the user reviews it in `/hooks`. Trust is recorded against
+  the hook's hash, so moving the checkout means reviewing again.
 
-`scripts/session-hooks.js` edits the user's Claude Code `settings.json`: only
-the `hooks` key, only entries whose command names `session-report.js`, a
-backup first, and nothing at all without `--write`.
+`scripts/session-hooks.js` edits one file per provider (Claude Code's
+`settings.json`, Codex's `hooks.json`): only the `hooks` key, only entries
+whose command names `session-report.js` with that provider, a backup first,
+and nothing at all without `--write`.
 
 ## Where per-user files live
 
